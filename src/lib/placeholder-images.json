@@ -1,0 +1,52 @@
+{
+  "placeholderImages": [
+    {
+      "id": "logo-startup",
+      "description": "Itararé Pass Official Logo - Local Image",
+      "imageUrl": "/logo.jpeg",
+      "imageHint": "itarare pass logo"
+    },
+    {
+      "id": "lumber",
+      "description": "Serra da lumber - Itararé",
+      "imageUrl": "https://hotelparaiso.wordpress.com/wp-content/uploads/2014/11/serra-da-lumber-itararc3a9-sp-00731.jpg",
+      "imageHint": "mountain forest cliff"
+    },
+    {
+      "id": "rio-verde",
+      "description": "Rio Verde - Itararé",
+      "imageUrl": "https://www.viagensecaminhos.com/wp-content/uploads/2023/02/rio-verde-itarare-sp.jpg",
+      "imageHint": "clear river gold rocks"
+    },
+    {
+      "id": "pirituba",
+      "description": "Cânion Pirituba - Itararé",
+      "imageUrl": "https://www.viagensecaminhos.com/wp-content/uploads/2023/01/canion-pirituba.jpg",
+      "imageHint": "deep sandstone canyon"
+    },
+    {
+      "id": "hotel-itarare",
+      "description": "Hotel Itararé",
+      "imageUrl": "https://lh3.googleusercontent.com/p/AF1QipN3-v-F9p-v0-x-F9p-v0-x-F9p-v0-x-F9p-v0-x-F9p-v0=s1600-w800",
+      "imageHint": "classic hotel facade"
+    },
+    {
+      "id": "barreira",
+      "description": "Parque da Barreira - Itararé",
+      "imageUrl": "https://www.senges.pr.gov.br/portal/NAdmin/_lib/file/imgs_imagem_turismo/Gruta_Barreira(1)(6).jpg",
+      "imageHint": "river rock cave"
+    },
+    {
+      "id": "morro-chato",
+      "description": "Mirante Morro Chato - Itararé",
+      "imageUrl": "https://www.viagensecaminhos.com/wp-content/uploads/2023/02/itarare-mirante-morro-chato.jpg",
+      "imageHint": "landscape horizon plateau"
+    },
+    {
+      "id": "poco-encantado",
+      "description": "Poço Encantado - Itararé",
+      "imageUrl": "https://www.senges.pr.gov.br/portal/NAdmin/_lib/file/imgs_imagem_turismo_det/Poco_Encanto(2).jpg",
+      "imageHint": "natural pool waterfall"
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents a tourist or merchant in the Itararé Pass ecosystem.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["tourist", "merchant", "admin"] },
+        "originCity": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "approved": { "type": "boolean" },
+        "createdAt": { "type": "number" },
+        "businessId": { "type": "string", "description": "Only for merchants" }
+      },
+      "required": ["uid", "role"]
+    },
+    "TouristSpot": {
+      "title": "TouristSpot",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "type": { "type": "string", "enum": ["adventure", "lodging"] },
+        "image": { "type": "string" },
+        "cityId": { "type": "string" }
+      }
+    },
+    "CheckIn": {
+      "title": "CheckIn",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "spotId": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "insight": { "type": "string" },
+        "language": { "type": "string" }
+      }
+    },
+    "Coupon": {
+      "title": "Coupon",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "businessId": { "type": "string" },
+        "businessName": { "type": "string" },
+        "discount": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "used", "expired"] },
+        "userId": { "type": "string" }
+      }
+    }
+  },
+  "auth": {
+    "providers": ["password", "google", "anonymous"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles and roles."
+    },
+    "/cities/{cityId}/spots/{spotId}": {
+      "schema": { "$ref": "#/entities/TouristSpot" },
+      "description": "Tourist attractions organized by city."
+    },
+    "/users/{userId}/checkins/{checkinId}": {
+      "schema": { "$ref": "#/entities/CheckIn" },
+      "description": "Check-in records for tourists."
+    },
+    "/users/{userId}/coupons/{couponId}": {
+      "schema": { "$ref": "#/entities/Coupon" },
+      "description": "Coupons earned by specific users."
+    }
+  }
+}

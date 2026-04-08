@@ -1,0 +1,185 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 165 40% 12%; 
+    --foreground: 0 0% 100%;
+    --card: 165 30% 15%;
+    --card-foreground: 0 0% 100%;
+    --popover: 165 40% 10%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 25 95% 55%; 
+    --primary-foreground: 0 0% 100%;
+    --secondary: 165 20% 20%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 165 20% 15%;
+    --muted-foreground: 0 0% 70%;
+    --accent: 25 95% 55%;
+    --accent-foreground: 0 0% 100%;
+    --border: 165 30% 18%;
+    --input: 165 30% 18%;
+    --ring: 25 95% 55%;
+    --radius: 2rem;
+    --font-scale: 1;
+  }
+
+  /* MODO ALTO CONTRASTE - REFEITO PARA ESTABILIDADE E BELEZA */
+  .high-contrast {
+    --background: 0 0% 0%;
+    --foreground: 60 100% 50%; /* Amarelo */
+    --primary: 60 100% 50%;
+    --primary-foreground: 0 0% 0%;
+    --card: 0 0% 5%;
+    --card-foreground: 60 100% 50%;
+    --popover: 0 0% 0%;
+    --popover-foreground: 60 100% 50%;
+    --accent: 60 100% 50%;
+    --accent-foreground: 0 0% 0%;
+    --border: 60 100% 50%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 60 100% 80%;
+  }
+
+  /* Ajustes Globais para Alto Contraste */
+  .high-contrast body {
+    background-color: #000000 !important;
+    color: #ffff00 !important;
+  }
+
+  /* Imagens devem SEMPRE aparecer */
+  .high-contrast img {
+    opacity: 1 !important;
+    filter: none !important;
+    border: 2px solid #ffff00 !important;
+  }
+
+  /* Forçar visibilidade de textos que usam opacidade do Tailwind (ex: text-white/40) */
+  .high-contrast * {
+    text-shadow: none !important;
+  }
+
+  .high-contrast h1, 
+  .high-contrast h2, 
+  .high-contrast h3, 
+  .high-contrast h4, 
+  .high-contrast p, 
+  .high-contrast span, 
+  .high-contrast label,
+  .high-contrast div:not(.bg-primary):not(button) {
+    color: #ffff00 !important;
+    opacity: 1 !important;
+  }
+
+  /* Botões e Elementos de Ação - Inversão para Contraste Máximo */
+  .high-contrast .bg-primary,
+  .high-contrast .bg-accent,
+  .high-contrast .bg-blue-600,
+  .high-contrast .bg-green-600,
+  .high-contrast .bg-purple-600,
+  .high-contrast button:not([variant="ghost"]):not([variant="outline"]) {
+    background-color: #ffff00 !important;
+    color: #000000 !important;
+    border: 2px solid #ffff00 !important;
+    opacity: 1 !important;
+  }
+
+  /* Texto dentro de botões deve ser PRETO no fundo AMARELO */
+  .high-contrast button *,
+  .high-contrast .bg-primary *,
+  .high-contrast .bg-accent *,
+  .high-contrast .bg-blue-600 *,
+  .high-contrast .bg-green-600 *,
+  .high-contrast .bg-purple-600 * {
+    color: #000000 !important;
+    opacity: 1 !important;
+  }
+
+  /* Ícones SVGs fora de botões devem ser AMARELOS */
+  .high-contrast svg:not(button svg):not(.bg-primary svg):not(.flag-svg) {
+    stroke: #ffff00 !important;
+    color: #ffff00 !important;
+  }
+
+  .high-contrast .font-dyslexic {
+    font-family: 'OpenDyslexic', 'Comic Sans MS', sans-serif !important;
+  }
+
+  html {
+    font-size: calc(16px * var(--font-scale)) !important;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+}
+
+.leaflet-container {
+  background: #0d2a1f !important;
+  width: 100% !important;
+  height: 100% !important;
+  outline: none;
+}
+
+.leaflet-tile-pane {
+  filter: invert(100%) hue-rotate(180deg) brightness(85%) contrast(85%) grayscale(0.5);
+}
+
+.user-marker-static {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.user-marker-core {
+  width: 12px;
+  height: 12px;
+  background: #3b82f6;
+  border: 2px solid white;
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+  z-index: 10;
+}
+
+.user-marker-pulse {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  background: rgba(59, 130, 246, 0.4);
+  border-radius: 50%;
+  animation: marker-pulse-glow 2s infinite;
+  z-index: 5;
+}
+
+@keyframes marker-pulse-glow {
+  0% { transform: scale(0.8); opacity: 0.8; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+.pwa-safe-area {
+  padding-bottom: env(safe-area-inset-bottom, 1rem);
+}
