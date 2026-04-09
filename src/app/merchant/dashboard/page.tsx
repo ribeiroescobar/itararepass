@@ -32,6 +32,7 @@ export default function MerchantDashboard() {
   const [establishments, setEstablishments] = useState<any[]>([]);
   const [isSavingEst, setIsSavingEst] = useState(false);
   const [isSavingCoupon, setIsSavingCoupon] = useState(false);
+  const [editEstId, setEditEstId] = useState<string | null>(null);
   const [estName, setEstName] = useState("");
   const [estDescription, setEstDescription] = useState("");
   const [estAddress, setEstAddress] = useState("");
@@ -52,12 +53,16 @@ export default function MerchantDashboard() {
     }
   }, [isUserLoading, profile, router]);
 
-  useEffect(() => {
-    if (!profile) return;
+  const refreshEstablishments = () => {
     fetch("/api/merchant/establishments")
       .then((res) => res.json())
       .then((data) => setEstablishments(data.establishments || []))
       .catch(() => setEstablishments([]));
+  };
+
+  useEffect(() => {
+    if (!profile) return;
+    refreshEstablishments();
   }, [profile]);
 
   const handleScan = () => {
@@ -72,17 +77,22 @@ export default function MerchantDashboard() {
     if (!estName.trim()) return;
     setIsSavingEst(true);
     try {
-      const res = await fetch("/api/merchant/establishments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: estName,
-          description: estDescription,
-          address: estAddress,
-          imageUrl: estImageUrl,
-          category: estCategory,
-        }),
-      });
+      const payload = {
+        name: estName,
+        description: estDescription,
+        address: estAddress,
+        imageUrl: estImageUrl,
+        category: estCategory,
+      };
+
+      const res = await fetch(
+        editEstId ? `/api/merchant/establishments/${editEstId}` : "/api/merchant/establishments",
+        {
+          method: editEstId ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
       const data = await res.json();
       if (!res.ok) {
         if (res.status === 403) {
@@ -90,13 +100,18 @@ export default function MerchantDashboard() {
         }
         throw new Error(data?.error || "Erro ao cadastrar.");
       }
-      setEstablishments((prev) => [data.establishment, ...prev]);
+      if (!editEstId) {
+        setEstablishments((prev) => [data.establishment, ...prev]);
+      } else {
+        refreshEstablishments();
+      }
       setEstName("");
       setEstDescription("");
       setEstAddress("");
       setEstImageUrl("");
       setEstCategory("");
-      toast({ title: "Estabelecimento criado!" });
+      setEditEstId(null);
+      toast({ title: editEstId ? "Estabelecimento atualizado!" : "Estabelecimento criado!" });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Falha ao salvar", description: err.message });
     } finally {
@@ -142,6 +157,33 @@ export default function MerchantDashboard() {
     } finally {
       setIsSavingCoupon(false);
     }
+  };
+
+  const handleEditEst = (est: any) => {
+    setEditEstId(est.id);
+    setEstName(est.name || "");
+    setEstDescription(est.description || "");
+    setEstAddress(est.address || "");
+    setEstImageUrl(est.imageUrl || "");
+    setEstCategory(est.category || "");
+  };
+
+  const handleDeactivateEst = async (id: string) => {
+    await fetch(`/api/merchant/establishments/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive: false }),
+    });
+    refreshEstablishments();
+  };
+
+  const handleReactivateEst = async (id: string) => {
+    await fetch(`/api/merchant/establishments/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive: true }),
+    });
+    refreshEstablishments();
   };
 
   if (isUserLoading) {
@@ -253,9 +295,80 @@ export default function MerchantDashboard() {
             <Input placeholder="Endereço" value={estAddress} onChange={(e) => setEstAddress(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl h-12 text-white" />
             <Input placeholder="URL da imagem" value={estImageUrl} onChange={(e) => setEstImageUrl(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl h-12 text-white" />
             <Input placeholder="Categoria (ex: hospedagem, restaurante)" value={estCategory} onChange={(e) => setEstCategory(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl h-12 text-white" />
-            <Button onClick={handleCreateEstablishment} disabled={isSavingEst} className="w-full bg-primary h-12 rounded-2xl font-black uppercase text-[10px]">
-              {isSavingEst ? "Salvando..." : "Salvar Estabelecimento"}
-            </Button>
+            <div className="flex gap-3">
+              <Button onClick={handleCreateEstablishment} disabled={isSavingEst} className="flex-1 bg-primary h-12 rounded-2xl font-black uppercase text-[10px]">
+                {isSavingEst ? "Salvando..." : editEstId ? "Atualizar Estabelecimento" : "Salvar Estabelecimento"}
+              </Button>
+              {editEstId && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setEditEstId(null);
+                    setEstName("");
+                    setEstDescription("");
+                    setEstAddress("");
+                    setEstImageUrl("");
+                    setEstCategory("");
+                  }}
+                  className="border-white/10 text-white/60 h-12 rounded-2xl text-[10px] uppercase font-black"
+                >
+                  Cancelar
+                </Button>
+              )}
+            </div>
+          </Card>
+        </section>
+
+        <section className="space-y-4">
+          <div className="flex items-center gap-2 px-2">
+            <Store className="w-4 h-4 text-white/20" />
+            <h3 className="text-[10px] font-black text-white/40 uppercase tracking-widest">Seus Estabelecimentos</h3>
+          </div>
+          <Card className="bg-white/5 border-white/10 p-6 rounded-[2.5rem] space-y-3">
+            {establishments.filter((e) => e.isActive !== false).length === 0 ? (
+              <div className="text-center py-10 text-white/30 text-xs">Nenhum estabelecimento ativo</div>
+            ) : (
+              establishments.filter((e) => e.isActive !== false).map((est) => (
+                <div key={est.id} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
+                  <div>
+                    <p className="text-sm font-black text-white">{est.name}</p>
+                    <p className="text-[9px] text-white/40 uppercase">{est.category || "Sem categoria"}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="border-white/10 text-white/60" onClick={() => handleEditEst(est)}>
+                      Editar
+                    </Button>
+                    <Button variant="outline" className="border-white/10 text-white/50" onClick={() => handleDeactivateEst(est.id)}>
+                      Desativar
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </Card>
+        </section>
+
+        <section className="space-y-4">
+          <div className="flex items-center gap-2 px-2">
+            <Store className="w-4 h-4 text-white/20" />
+            <h3 className="text-[10px] font-black text-white/40 uppercase tracking-widest">Desativados</h3>
+          </div>
+          <Card className="bg-white/5 border-white/10 p-6 rounded-[2.5rem] space-y-3">
+            {establishments.filter((e) => e.isActive === false).length === 0 ? (
+              <div className="text-center py-10 text-white/30 text-xs">Nenhum estabelecimento desativado</div>
+            ) : (
+              establishments.filter((e) => e.isActive === false).map((est) => (
+                <div key={est.id} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
+                  <div>
+                    <p className="text-sm font-black text-white">{est.name}</p>
+                    <p className="text-[9px] text-white/40 uppercase">{est.category || "Sem categoria"}</p>
+                  </div>
+                  <Button variant="outline" className="border-white/10 text-white/50" onClick={() => handleReactivateEst(est.id)}>
+                    Reativar
+                  </Button>
+                </div>
+              ))
+            )}
           </Card>
         </section>
 

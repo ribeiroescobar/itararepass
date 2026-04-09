@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS establishments (
   category text,
   lat double precision,
   lng double precision,
+  premium_enabled boolean NOT NULL DEFAULT false,
   is_active boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()

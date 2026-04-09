@@ -32,6 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   ResponsiveContainer,
   PieChart,
@@ -79,6 +80,14 @@ export default function AdminDashboardPage() {
   const [spotImage, setSpotImage] = useState("");
   const [spotCapacity, setSpotCapacity] = useState("");
   const [spotSnippet, setSpotSnippet] = useState("");
+  const [editSpotId, setEditSpotId] = useState<string | null>(null);
+  const [editEstId, setEditEstId] = useState<string | null>(null);
+  const [estName, setEstName] = useState("");
+  const [estDescription, setEstDescription] = useState("");
+  const [estAddress, setEstAddress] = useState("");
+  const [estImageUrl, setEstImageUrl] = useState("");
+  const [estCategory, setEstCategory] = useState("");
+  const [estPremiumEnabled, setEstPremiumEnabled] = useState(false);
   const router = useRouter();
 
   const isAdminMaster = profile?.tipo_usuario === "admin_master";
@@ -101,7 +110,7 @@ export default function AdminDashboardPage() {
         fetchJson<{ checkins: any[] }>("/api/admin/checkins"),
         fetchJson<{ comments: any[] }>("/api/admin/comments?limit=50"),
         fetchJson<{ spots: any[] }>("/api/admin/spots"),
-        fetchJson<{ establishments: any[] }>("/api/establishments"),
+        isAdminMaster ? fetchJson<{ establishments: any[] }>("/api/merchant/establishments") : Promise.resolve({ establishments: [] }),
       ]);
       setAllUsers(usersData.users || []);
       setAllCheckins(checkinsData.checkins || []);
@@ -214,22 +223,26 @@ export default function AdminDashboardPage() {
   const COLORS = ["#f97316", "#3b82f6", "#10b981", "#a855f7", "#ec4899", "#eab308"];
 
   const handleCreateSpot = async () => {
-    if (!spotId.trim() || !spotName.trim() || !spotLat || !spotLng) return;
+    if ((!editSpotId && !spotId.trim()) || !spotName.trim() || !spotLat || !spotLng) return;
     try {
-      const res = await fetch("/api/admin/spots", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: spotId.trim(),
-          name: spotName.trim(),
-          lat: Number(spotLat),
-          lng: Number(spotLng),
-          type: spotType,
-          image: spotImage || undefined,
-          capacity: spotCapacity ? Number(spotCapacity) : 0,
-          historicalSnippet: spotSnippet || undefined,
-        }),
-      });
+      const payload = {
+        id: spotId.trim(),
+        name: spotName.trim(),
+        lat: Number(spotLat),
+        lng: Number(spotLng),
+        type: spotType,
+        image: spotImage || undefined,
+        capacity: spotCapacity ? Number(spotCapacity) : 0,
+        historicalSnippet: spotSnippet || undefined,
+      };
+      const res = await fetch(
+        editSpotId ? `/api/admin/spots/${editSpotId}` : "/api/admin/spots",
+        {
+          method: editSpotId ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Erro ao salvar local.");
       setSpotId("");
@@ -240,8 +253,9 @@ export default function AdminDashboardPage() {
       setSpotImage("");
       setSpotCapacity("");
       setSpotSnippet("");
+      setEditSpotId(null);
       refreshData();
-      toast({ title: "Local cadastrado!" });
+      toast({ title: editSpotId ? "Local atualizado!" : "Local cadastrado!" });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Falha ao salvar", description: err.message });
     }
@@ -254,6 +268,67 @@ export default function AdminDashboardPage() {
 
   const handleReactivateSpot = async (id: string) => {
     await fetch(`/api/admin/spots/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive: true }),
+    });
+    refreshData();
+  };
+
+  const handleEditSpot = (spot: any) => {
+    setEditSpotId(spot.id);
+    setSpotId(spot.id);
+    setSpotName(spot.name || "");
+    setSpotLat(String(spot.lat ?? ""));
+    setSpotLng(String(spot.lng ?? ""));
+    setSpotType(spot.type || "adventure");
+    setSpotImage(spot.image || "");
+    setSpotCapacity(String(spot.capacity ?? ""));
+    setSpotSnippet(spot.historicalSnippet || "");
+  };
+
+  const handleEditEst = (est: any) => {
+    setEditEstId(est.id);
+    setEstName(est.name || "");
+    setEstDescription(est.description || "");
+    setEstAddress(est.address || "");
+    setEstImageUrl(est.imageUrl || "");
+    setEstCategory(est.category || "");
+    setEstPremiumEnabled(!!est.premiumEnabled);
+  };
+
+  const handleSaveEst = async () => {
+    if (!editEstId) return;
+    const res = await fetch(`/api/merchant/establishments/${editEstId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: estName,
+        description: estDescription,
+        address: estAddress,
+        imageUrl: estImageUrl,
+        category: estCategory,
+        premiumEnabled: estPremiumEnabled,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast({ variant: "destructive", title: "Falha ao salvar", description: data?.error || "Erro ao salvar." });
+      return;
+    }
+    setEditEstId(null);
+    setEstName("");
+    setEstDescription("");
+    setEstAddress("");
+    setEstImageUrl("");
+    setEstCategory("");
+    setEstPremiumEnabled(false);
+    refreshData();
+    toast({ title: "Estabelecimento atualizado!" });
+  };
+
+  const handleReactivateEst = async (id: string) => {
+    await fetch(`/api/merchant/establishments/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isActive: true }),
@@ -479,7 +554,13 @@ export default function AdminDashboardPage() {
                 <PlusCircle className="w-4 h-4 text-primary" />
                 <h3 className="text-[10px] font-black text-white/50 uppercase tracking-widest">Cadastrar Local</h3>
               </div>
-              <Input placeholder="ID (ex: rio_verde)" value={spotId} onChange={(e) => setSpotId(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl h-12 text-white" />
+              <Input
+                placeholder="ID (ex: rio_verde)"
+                value={spotId}
+                onChange={(e) => setSpotId(e.target.value)}
+                disabled={!!editSpotId}
+                className="bg-black/40 border-white/5 rounded-2xl h-12 text-white"
+              />
               <Input placeholder="Nome do local" value={spotName} onChange={(e) => setSpotName(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl h-12 text-white" />
               <div className="grid grid-cols-2 gap-4">
                 <Input placeholder="Latitude" value={spotLat} onChange={(e) => setSpotLat(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl h-12 text-white" />
@@ -497,9 +578,30 @@ export default function AdminDashboardPage() {
                   <SelectItem value="lodging">Hospedagem</SelectItem>
                 </SelectContent>
               </Select>
-              <Button onClick={handleCreateSpot} className="bg-primary h-12 rounded-2xl font-black uppercase text-[10px]">
-                Salvar Local
-              </Button>
+              <div className="flex gap-3">
+                <Button onClick={handleCreateSpot} className="flex-1 bg-primary h-12 rounded-2xl font-black uppercase text-[10px]">
+                  {editSpotId ? "Atualizar Local" : "Salvar Local"}
+                </Button>
+                {editSpotId && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setEditSpotId(null);
+                      setSpotId("");
+                      setSpotName("");
+                      setSpotLat("");
+                      setSpotLng("");
+                      setSpotType("adventure");
+                      setSpotImage("");
+                      setSpotCapacity("");
+                      setSpotSnippet("");
+                    }}
+                    className="border-white/10 text-white/60 h-12 rounded-2xl text-[10px] uppercase font-black"
+                  >
+                    Cancelar
+                  </Button>
+                )}
+              </div>
             </Card>
 
             <Card className="bg-white/5 border-white/10 p-6 rounded-[2.5rem]">
@@ -519,9 +621,14 @@ export default function AdminDashboardPage() {
                         <p className="text-sm font-black text-white">{spot.name}</p>
                         <p className="text-[9px] text-white/40 uppercase">{spot.id}</p>
                       </div>
-                      <Button variant="outline" className="border-white/10 text-white/50" onClick={() => handleDeactivateSpot(spot.id)}>
-                        Desativar
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button variant="outline" className="border-white/10 text-white/60" onClick={() => handleEditSpot(spot)}>
+                          Editar
+                        </Button>
+                        <Button variant="outline" className="border-white/10 text-white/50" onClick={() => handleDeactivateSpot(spot.id)}>
+                          Desativar
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -557,6 +664,43 @@ export default function AdminDashboardPage() {
 
           {isAdminMaster && (
             <TabsContent value="establishments" className="space-y-6">
+              <Card className="bg-white/5 border-white/10 p-6 rounded-[2.5rem] space-y-4">
+                <div className="flex items-center gap-2">
+                  <Store className="w-4 h-4 text-primary" />
+                  <h3 className="text-[10px] font-black text-white/50 uppercase tracking-widest">Editar Estabelecimento</h3>
+                </div>
+                <Input placeholder="Nome" value={estName} onChange={(e) => setEstName(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl h-12 text-white" />
+                <Textarea placeholder="Descrição" value={estDescription} onChange={(e) => setEstDescription(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl text-white min-h-[80px]" />
+                <Input placeholder="Endereço" value={estAddress} onChange={(e) => setEstAddress(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl h-12 text-white" />
+                <Input placeholder="URL da imagem" value={estImageUrl} onChange={(e) => setEstImageUrl(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl h-12 text-white" />
+                <Input placeholder="Categoria" value={estCategory} onChange={(e) => setEstCategory(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl h-12 text-white" />
+                <div className="flex items-center justify-between text-white/60 text-[10px] font-black uppercase">
+                  Premium habilitado
+                  <Switch checked={estPremiumEnabled} onCheckedChange={setEstPremiumEnabled} />
+                </div>
+                <div className="flex gap-3">
+                  <Button onClick={handleSaveEst} disabled={!editEstId} className="flex-1 bg-primary h-12 rounded-2xl font-black uppercase text-[10px]">
+                    Salvar Alterações
+                  </Button>
+                  {editEstId && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setEditEstId(null);
+                        setEstName("");
+                        setEstDescription("");
+                        setEstAddress("");
+                        setEstImageUrl("");
+                        setEstCategory("");
+                        setEstPremiumEnabled(false);
+                      }}
+                      className="border-white/10 text-white/60 h-12 rounded-2xl text-[10px] uppercase font-black"
+                    >
+                      Cancelar
+                    </Button>
+                  )}
+                </div>
+              </Card>
               <Card className="bg-white/5 border-white/10 p-6 rounded-[2.5rem]">
                 <div className="flex items-center gap-2 mb-4">
                   <Store className="w-4 h-4 text-white/40" />
@@ -564,18 +708,49 @@ export default function AdminDashboardPage() {
                 </div>
                 {isEstLoading ? (
                   <div className="text-center py-10 text-white/30 text-xs">Carregando...</div>
-                ) : allEstablishments.length === 0 ? (
+                ) : allEstablishments.filter((e) => e.isActive !== false).length === 0 ? (
                   <div className="text-center py-10 text-white/30 text-xs">Nenhum estabelecimento cadastrado</div>
                 ) : (
                   <div className="space-y-3">
-                    {allEstablishments.map((est) => (
+                    {allEstablishments.filter((e) => e.isActive !== false).map((est) => (
                       <div key={est.id} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
                         <div>
                           <p className="text-sm font-black text-white">{est.name}</p>
                           <p className="text-[9px] text-white/40 uppercase">{est.category || "Sem categoria"}</p>
                         </div>
-                        <Button variant="outline" className="border-white/10 text-white/50" onClick={() => handleDeactivateEst(est.id)}>
-                          Desativar
+                        <div className="flex gap-2">
+                          <Button variant="outline" className="border-white/10 text-white/60" onClick={() => handleEditEst(est)}>
+                            Editar
+                          </Button>
+                          <Button variant="outline" className="border-white/10 text-white/50" onClick={() => handleDeactivateEst(est.id)}>
+                            Desativar
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+
+              <Card className="bg-white/5 border-white/10 p-6 rounded-[2.5rem]">
+                <div className="flex items-center gap-2 mb-4">
+                  <Store className="w-4 h-4 text-white/40" />
+                  <h3 className="text-[10px] font-black text-white/40 uppercase tracking-widest">Desativados</h3>
+                </div>
+                {isEstLoading ? (
+                  <div className="text-center py-10 text-white/30 text-xs">Carregando...</div>
+                ) : allEstablishments.filter((e) => e.isActive === false).length === 0 ? (
+                  <div className="text-center py-10 text-white/30 text-xs">Nenhum estabelecimento desativado</div>
+                ) : (
+                  <div className="space-y-3">
+                    {allEstablishments.filter((e) => e.isActive === false).map((est) => (
+                      <div key={est.id} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
+                        <div>
+                          <p className="text-sm font-black text-white">{est.name}</p>
+                          <p className="text-[9px] text-white/40 uppercase">{est.category || "Sem categoria"}</p>
+                        </div>
+                        <Button variant="outline" className="border-white/10 text-white/50" onClick={() => handleReactivateEst(est.id)}>
+                          Reativar
                         </Button>
                       </div>
                     ))}
@@ -610,9 +785,10 @@ export default function AdminDashboardPage() {
                   </div>
                   <Button
                     onClick={async () => {
+                      const nextRole = u.tipo_usuario?.includes("logista") ? "merchant" : "admin";
                       await updateUserStatus(u.uid, {
                         approved: true,
-                        role: "admin",
+                        role: nextRole,
                         tipo_usuario: u.tipo_usuario.replace("_pendente", ""),
                       });
                       refreshData();

@@ -19,16 +19,16 @@ WITH admin_user AS (
   SELECT id FROM users WHERE role = 'admin' ORDER BY created_at ASC LIMIT 1
 ),
 establishments_insert AS (
-  INSERT INTO establishments (owner_user_id, name, address, image_url, category)
-  SELECT id, 'Casa do Artesão', 'Rua XV de Novembro, 56', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQmpbLcYBcNqO-dC-5mg6pinV9-6xk3JjRtYQ&s', 'artesanato' FROM admin_user
+  INSERT INTO establishments (owner_user_id, name, address, image_url, category, premium_enabled)
+  SELECT id, 'Casa do Artesão', 'Rua XV de Novembro, 56', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQmpbLcYBcNqO-dC-5mg6pinV9-6xk3JjRtYQ&s', 'artesanato', false FROM admin_user
   UNION ALL
-  SELECT id, 'Café Dona Bela', 'Rua São Pedro, 100', 'https://img3.restaurantguru.com/w550/h367/r674-Dona-Bela-design-2025-09.jpg', 'cafeteria' FROM admin_user
+  SELECT id, 'Café Dona Bela', 'Rua São Pedro, 100', 'https://img3.restaurantguru.com/w550/h367/r674-Dona-Bela-design-2025-09.jpg', 'cafeteria', false FROM admin_user
   UNION ALL
-  SELECT id, 'Padaria Abati', 'Rua XV de Novembro, 12', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSbgo-KLT8D57-_MTYDXoXLuPq_tVtshcrQCA&s', 'padaria' FROM admin_user
+  SELECT id, 'Padaria Abati', 'Rua XV de Novembro, 12', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSbgo-KLT8D57-_MTYDXoXLuPq_tVtshcrQCA&s', 'padaria', false FROM admin_user
   UNION ALL
-  SELECT id, 'Hotel Itararé', 'Rua São Pedro, 50', 'https://acheiitarare.com.br/wp-content/uploads/2020/10/Foto-Fachada-Nova-1024x768.jpeg', 'hospedagem' FROM admin_user
+  SELECT id, 'Hotel Itararé', 'Rua São Pedro, 50', 'https://acheiitarare.com.br/wp-content/uploads/2020/10/Foto-Fachada-Nova-1024x768.jpeg', 'hospedagem', false FROM admin_user
   UNION ALL
-  SELECT id, 'Gourmeteria', 'Av. Zeca de Moraes, 120', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR7cHNxnpNjUPj8es32NzXgPzG4fv-YccY3Qw&s', 'restaurante' FROM admin_user
+  SELECT id, 'Gourmeteria', 'Av. Zeca de Moraes, 120', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR7cHNxnpNjUPj8es32NzXgPzG4fv-YccY3Qw&s', 'restaurante', false FROM admin_user
   RETURNING id, name
 )
 INSERT INTO coupons_catalog (establishment_id, title, discount, requires_profile, min_adventure_spots, requires_lodging, is_premium)

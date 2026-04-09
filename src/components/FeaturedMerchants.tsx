@@ -43,7 +43,7 @@ export function FeaturedMerchants({ merchants }: FeaturedMerchantsProps) {
           <Link key={merchant.id} href="/coupons" className="shrink-0">
             <div className="relative w-64 aspect-[4/5] rounded-[2.5rem] overflow-hidden group shadow-2xl border border-amber-500/20">
               <Image 
-                src={merchant.image} 
+                src={merchant.image || "/logo.jpeg"} 
                 alt={merchant.businessName} 
                 fill 
                 className="object-cover transition-transform duration-700 group-hover:scale-110"

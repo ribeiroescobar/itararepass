@@ -14,6 +14,7 @@ const schema = z.object({
   lat: z.number().optional().nullable(),
   lng: z.number().optional().nullable(),
   isActive: z.boolean().optional(),
+  premiumEnabled: z.boolean().optional(),
 });
 
 export async function PATCH(req: Request, context: { params: { id: string } }) {
@@ -42,6 +43,7 @@ export async function PATCH(req: Request, context: { params: { id: string } }) {
   }
 
   const data = parsed.data;
+  const premiumEnabled = auth.isMaster ? data.premiumEnabled : null;
   await dbQuery(
     `UPDATE establishments SET
       name = COALESCE($1, name),
@@ -52,8 +54,9 @@ export async function PATCH(req: Request, context: { params: { id: string } }) {
       lat = COALESCE($6, lat),
       lng = COALESCE($7, lng),
       is_active = COALESCE($8, is_active),
+      premium_enabled = COALESCE($9, premium_enabled),
       updated_at = now()
-     WHERE id = $9`,
+     WHERE id = $10`,
     [
       data.name ?? null,
       data.description ?? null,
@@ -63,6 +66,7 @@ export async function PATCH(req: Request, context: { params: { id: string } }) {
       data.lat ?? null,
       data.lng ?? null,
       typeof data.isActive === "boolean" ? data.isActive : null,
+      typeof premiumEnabled === "boolean" ? premiumEnabled : null,
       id,
     ]
   );

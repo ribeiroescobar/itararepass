@@ -133,32 +133,36 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user]);
 
-  useEffect(() => {
-    let active = true;
+  const fetchBaseData = useCallback(() => {
     fetchJson<{ spots: ApiSpot[] }>("/api/spots")
       .then((data) => {
-        if (!active) return;
         setBaseSpots(data.spots || []);
       })
       .catch(() => {
-        if (!active) return;
         setBaseSpots([]);
       });
 
     fetchJson<{ coupons: ApiCoupon[] }>("/api/coupons/catalog")
       .then((data) => {
-        if (!active) return;
         setBaseCoupons(data.coupons || []);
       })
       .catch(() => {
-        if (!active) return;
         setBaseCoupons([]);
       });
-
-    return () => {
-      active = false;
-    };
   }, []);
+
+  useEffect(() => {
+    fetchBaseData();
+    const handleFocus = () => fetchBaseData();
+    if (typeof window !== "undefined") {
+      window.addEventListener("focus", handleFocus);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("focus", handleFocus);
+      }
+    };
+  }, [fetchBaseData]);
 
   const spots = useMemo(() => {
     const sourceSpots = baseSpots.length > 0 ? baseSpots : INITIAL_SPOTS;

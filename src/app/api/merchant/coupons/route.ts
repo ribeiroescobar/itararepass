@@ -31,15 +31,19 @@ export async function POST(req: Request) {
 
   const data = parsed.data;
   const ownership = await dbQuery(
-    "SELECT owner_user_id FROM establishments WHERE id = $1",
+    "SELECT owner_user_id, premium_enabled FROM establishments WHERE id = $1",
     [data.establishmentId]
   );
   const ownerId = ownership.rows[0]?.owner_user_id;
+  const premiumEnabled = ownership.rows[0]?.premium_enabled;
   if (!ownerId) {
     return NextResponse.json({ error: "Estabelecimento não encontrado." }, { status: 404 });
   }
   if (!auth.isMaster && ownerId !== auth.user.id) {
     return NextResponse.json({ error: "Sem permissão." }, { status: 403 });
+  }
+  if (data.isPremium && !auth.isMaster && !premiumEnabled) {
+    return NextResponse.json({ error: "Recurso premium não liberado para este estabelecimento." }, { status: 403 });
   }
 
   const result = await dbQuery(

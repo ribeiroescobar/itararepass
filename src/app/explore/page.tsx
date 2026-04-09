@@ -61,6 +61,7 @@ export default function ExplorePage() {
   const lodgingSpots = spots.filter(s => s.type === 'lodging');
   const unlockedCoupons = coupons.filter(c => !c.locked && !c.used);
   const featuredMerchants = coupons.filter(c => c.isPremium);
+  const displayMerchants = featuredMerchants.length > 0 ? featuredMerchants : coupons.slice(0, 5);
 
   return (
     <div className="min-h-screen bg-background pb-32 w-full max-w-full overflow-x-hidden">
@@ -136,7 +137,7 @@ export default function ExplorePage() {
       </header>
 
       <main className="px-6 space-y-12 w-full max-w-5xl mx-auto">
-        <FeaturedMerchants merchants={featuredMerchants} />
+        <FeaturedMerchants merchants={displayMerchants} />
 
         <section>
           <div className="flex items-center gap-2 mb-6">
