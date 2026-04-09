@@ -6,12 +6,6 @@ import { z } from "zod";
 
 export const runtime = "nodejs";
 
-const MASTER_EMAILS = [
-  "douglasescobarribeiro@gmail.com",
-  "douglas@itarare.gov.br",
-  "gestor@itarare.gov.br",
-];
-
 const schema = z.object({
   email: z.string().email(),
   pass: z.string().min(6),
@@ -22,10 +16,6 @@ const schema = z.object({
 
 function resolveRole(inputRole: string, email: string) {
   const emailLower = email.toLowerCase();
-  if (MASTER_EMAILS.includes(emailLower)) {
-    return { tipoUsuario: "admin_master", role: "admin", approved: true, isMaster: true };
-  }
-
   if (inputRole === "turista" || inputRole === "tourist") {
     return { tipoUsuario: "turista", role: "tourist", approved: true, isMaster: false };
   }
@@ -70,7 +60,7 @@ export async function POST(req: Request) {
     [
       emailLower,
       passwordHash,
-      roleInfo.isMaster ? (emailLower === "gestor@itarare.gov.br" ? "Gestor Demo" : "Douglas") : name,
+      name,
       additional?.whatsapp ?? null,
       additional?.originCity ?? null,
       additional?.ageGroup ?? null,

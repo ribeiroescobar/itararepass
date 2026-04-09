@@ -210,7 +210,7 @@ export default function AdminDashboardPage() {
               <h1 className="text-2xl font-black uppercase tracking-tighter italic leading-none">Gestão Itararé</h1>
               <div className="text-[9px] text-primary font-bold uppercase tracking-[0.3em] mt-1.5 flex items-center gap-2">
                 <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                Douglas Escobar (Master)
+                Administrador
               </div>
             </div>
           </div>

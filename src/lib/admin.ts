@@ -2,11 +2,6 @@ import "server-only";
 import { dbQuery } from "@/lib/db";
 import { getSessionFromCookies } from "@/lib/session";
 
-const MASTER_EMAILS = [
-  "douglasescobarribeiro@gmail.com",
-  "douglas@itarare.gov.br",
-  "gestor@itarare.gov.br",
-];
 
 export async function requireAdmin() {
   const session = getSessionFromCookies();
@@ -21,12 +16,11 @@ export async function requireAdmin() {
   const user = userRes.rows[0];
   if (!user) return { ok: false as const, reason: "unauthorized" };
 
-  const isMaster = MASTER_EMAILS.includes(user.email.toLowerCase());
   const isAdmin = user.role === "admin" && user.approved;
 
-  if (!isMaster && !isAdmin) {
+  if (!isAdmin) {
     return { ok: false as const, reason: "forbidden" };
   }
 
-  return { ok: true as const, session, isMaster };
+  return { ok: true as const, session, isMaster: false };
 }

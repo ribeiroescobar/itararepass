@@ -48,11 +48,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const MASTER_EMAILS = [
-  "douglasescobarribeiro@gmail.com",
-  "douglas@itarare.gov.br",
-  "gestor@itarare.gov.br",
-];
+const MASTER_EMAILS: string[] = [];
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
@@ -77,10 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const router = useRouter();
 
-  const isMaster = useMemo(() => {
-    if (!user?.email) return false;
-    return MASTER_EMAILS.includes(user.email.toLowerCase());
-  }, [user?.email]);
+  const isMaster = useMemo(() => false, []);
 
   useEffect(() => {
     let active = true;
@@ -111,16 +104,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const finalProfile = useMemo(() => {
     if (!user || !profile) return null;
-
-    if (isMaster) {
-      return {
-        ...profile,
-        name: profile?.name || (user.email === "gestor@itarare.gov.br" ? "Gestor Demo" : "Douglas"),
-        tipo_usuario: "admin_master" as UserRole,
-        role: "admin" as const,
-        approved: true,
-      };
-    }
 
     let role: "tourist" | "merchant" | "admin" = "tourist";
     if (profile.tipo_usuario?.includes("logista") || profile.role === "merchant") {
@@ -157,12 +140,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       setUser(data.user);
       setProfile(data.profile);
-      const isSpecial = MASTER_EMAILS.includes(email.toLowerCase());
       if (!data.profile.approved) {
-        toast({ title: "Cadastro Recebido", description: "Aguarde a liberação do Administrador Master." });
+        toast({ title: "Cadastro Recebido", description: "Aguarde a liberação do Administrador." });
       } else {
         toast({ title: "Bem-vindo ao Itararé Pass!" });
-        router.push(isSpecial ? "/admin/dashboard" : "/explore");
+        const destination =
+          data.profile.role === "admin"
+            ? "/admin/dashboard"
+            : data.profile.role === "merchant"
+            ? "/merchant/dashboard"
+            : "/explore";
+        router.push(destination);
       }
     } catch (err: any) {
       if (err?.message?.includes("E-mail já existe")) {
@@ -189,8 +177,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(data.user);
       setProfile(data.profile);
       toast({ title: "Acesso validado!" });
-      const isSpecial = MASTER_EMAILS.includes(email.toLowerCase());
-      router.push(isSpecial ? "/admin/dashboard" : "/explore");
+      if (data.profile.role === "admin" && data.profile.approved) {
+        router.push("/admin/dashboard");
+      } else if (data.profile.role === "merchant" && data.profile.approved) {
+        router.push("/merchant/dashboard");
+      } else {
+        router.push("/explore");
+      }
     } catch (err: any) {
       const msg =
         err.message === "Credenciais inválidas."
@@ -212,7 +205,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateUserStatus = async (targetUid: string, data: Partial<UserProfile>) => {
-    if (!isMaster) return;
+    if (!isAuthorized("admin")) return;
     await fetchJson(`/api/admin/users/${targetUid}`, {
       method: "PATCH",
       body: JSON.stringify(data),
