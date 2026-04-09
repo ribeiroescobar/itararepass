@@ -209,6 +209,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
         businessName: coupon.businessName || t(`${coupon.id}_name`),
         address: coupon.address || t(`${coupon.id}_addr`),
         discount: coupon.discount || t(`${coupon.id}_discount`),
+        image: coupon.image || (coupon as any).businessImage || coupon.image,
         used: !!isUsed,
         locked: !unlocked,
         requirementLabel: reqLabel,

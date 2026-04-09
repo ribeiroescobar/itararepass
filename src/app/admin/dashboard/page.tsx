@@ -31,6 +31,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ResponsiveContainer,
   PieChart,
@@ -478,14 +479,15 @@ export default function AdminDashboardPage() {
               <Input placeholder="URL da imagem" value={spotImage} onChange={(e) => setSpotImage(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl h-12 text-white" />
               <Input placeholder="Capacidade (opcional)" value={spotCapacity} onChange={(e) => setSpotCapacity(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl h-12 text-white" />
               <Textarea placeholder="Resumo histórico (opcional)" value={spotSnippet} onChange={(e) => setSpotSnippet(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl text-white min-h-[80px]" />
-              <select
-                className="bg-black/40 border border-white/5 rounded-2xl h-12 text-white px-3 text-[12px]"
-                value={spotType}
-                onChange={(e) => setSpotType(e.target.value)}
-              >
-                <option value="adventure">Natureza</option>
-                <option value="lodging">Hospedagem</option>
-              </select>
+              <Select value={spotType} onValueChange={setSpotType}>
+                <SelectTrigger className="bg-black/40 border-white/5 rounded-2xl h-12 text-white">
+                  <SelectValue placeholder="Tipo de local" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#0d1a14] border-white/10 text-white rounded-2xl">
+                  <SelectItem value="adventure">Natureza</SelectItem>
+                  <SelectItem value="lodging">Hospedagem</SelectItem>
+                </SelectContent>
+              </Select>
               <Button onClick={handleCreateSpot} className="bg-primary h-12 rounded-2xl font-black uppercase text-[10px]">
                 Salvar Local
               </Button>

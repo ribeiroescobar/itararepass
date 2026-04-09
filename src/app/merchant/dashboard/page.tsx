@@ -23,6 +23,7 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function MerchantDashboard() {
   const [showScanner, setShowScanner] = useState(false);
@@ -254,16 +255,16 @@ export default function MerchantDashboard() {
             <h3 className="text-[10px] font-black text-white/40 uppercase tracking-widest">Criar Cupom</h3>
           </div>
           <Card className="bg-white/5 border-white/10 p-6 rounded-[2.5rem] space-y-4">
-            <select
-              className="bg-black/40 border border-white/5 rounded-2xl h-12 text-white px-3 text-[12px]"
-              value={couponEstId}
-              onChange={(e) => setCouponEstId(e.target.value)}
-            >
-              <option value="">Selecione o estabelecimento</option>
-              {establishments.map((est) => (
-                <option key={est.id} value={est.id}>{est.name}</option>
-              ))}
-            </select>
+            <Select value={couponEstId} onValueChange={setCouponEstId}>
+              <SelectTrigger className="bg-black/40 border-white/5 rounded-2xl h-12 text-white">
+                <SelectValue placeholder="Selecione o estabelecimento" />
+              </SelectTrigger>
+              <SelectContent className="bg-[#0d1a14] border-white/10 text-white rounded-2xl">
+                {establishments.map((est) => (
+                  <SelectItem key={est.id} value={est.id}>{est.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Input placeholder="Título do cupom" value={couponTitle} onChange={(e) => setCouponTitle(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl h-12 text-white" />
             <Input placeholder="Desconto (ex: 15% OFF)" value={couponDiscount} onChange={(e) => setCouponDiscount(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl h-12 text-white" />
             <Input placeholder="Min. visitas aventura (opcional)" value={couponMinAdventures} onChange={(e) => setCouponMinAdventures(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl h-12 text-white" />
@@ -278,8 +279,11 @@ export default function MerchantDashboard() {
             </div>
             <div className="flex items-center justify-between text-white/60 text-[10px] font-black uppercase">
               Destaque Premium
-              <Switch checked={couponIsPremium} onCheckedChange={setCouponIsPremium} />
+              <Switch checked={couponIsPremium} onCheckedChange={setCouponIsPremium} disabled />
             </div>
+            <p className="text-[9px] text-white/30 uppercase tracking-widest">
+              Recurso premium. Solicite assinatura para liberar.
+            </p>
             <Button onClick={handleCreateCoupon} disabled={isSavingCoupon} className="w-full bg-primary h-12 rounded-2xl font-black uppercase text-[10px]">
               {isSavingCoupon ? "Salvando..." : "Criar Cupom"}
             </Button>
