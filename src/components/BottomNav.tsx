@@ -9,11 +9,9 @@ import { useItarare } from "@/hooks/use-itarare";
 
 export function BottomNav() {
   const pathname = usePathname();
-  const { t, isAuthorized, isMaster } = useItarare();
-
-  // Força a detecção de admin para o Master Jackson
-  const isAdmin = isMaster || isAuthorized('admin');
-  const isMerchant = isAuthorized('merchant');
+  const { t, isAuthorized } = useItarare();
+  const isAdmin = isAuthorized("admin");
+  const isMerchant = isAuthorized("merchant");
 
   const touristItems = [
     { label: t('explore'), icon: LayoutGrid, path: "/explore" },
@@ -24,7 +22,7 @@ export function BottomNav() {
   ];
 
   const merchantItems = [
-    { label: "Vendas", icon: Store, path: "/merchant/dashboard" },
+    { label: "Gestão", icon: Store, path: "/merchant/dashboard" },
     { label: t('map'), icon: Navigation, path: "/map" },
     { label: t('profile'), icon: User, path: "/profile" },
     { label: t('about'), icon: Info, path: "/about" },
@@ -32,7 +30,6 @@ export function BottomNav() {
 
   const adminItems = [
     { label: "Gestão", icon: Shield, path: "/admin/dashboard" },
-    { label: t('explore'), icon: LayoutGrid, path: "/explore" },
     { label: t('map'), icon: Navigation, path: "/map" },
     { label: t('profile'), icon: User, path: "/profile" },
     { label: t('about'), icon: Info, path: "/about" },

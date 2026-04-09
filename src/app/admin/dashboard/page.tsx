@@ -18,6 +18,8 @@ import {
   AlertCircle,
   DollarSign,
   ShieldCheck,
+  PlusCircle,
+  MapPin,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { BottomNav } from "@/components/BottomNav";
@@ -27,6 +29,8 @@ import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   ResponsiveContainer,
   PieChart,
@@ -59,14 +63,27 @@ export default function AdminDashboardPage() {
   const [allUsers, setAllUsers] = useState<any[] | null>(null);
   const [allCheckins, setAllCheckins] = useState<any[] | null>(null);
   const [latestComments, setLatestComments] = useState<any[] | null>(null);
+  const [allSpots, setAllSpots] = useState<any[]>([]);
+  const [allEstablishments, setAllEstablishments] = useState<any[]>([]);
   const [isUsersLoading, setIsUsersLoading] = useState(true);
   const [isCheckinsLoading, setIsCheckinsLoading] = useState(true);
   const [isCommentsLoading, setIsCommentsLoading] = useState(true);
+  const [isSpotsLoading, setIsSpotsLoading] = useState(true);
+  const [isEstLoading, setIsEstLoading] = useState(true);
+  const [spotId, setSpotId] = useState("");
+  const [spotName, setSpotName] = useState("");
+  const [spotLat, setSpotLat] = useState("");
+  const [spotLng, setSpotLng] = useState("");
+  const [spotType, setSpotType] = useState("adventure");
+  const [spotImage, setSpotImage] = useState("");
+  const [spotCapacity, setSpotCapacity] = useState("");
+  const [spotSnippet, setSpotSnippet] = useState("");
   const router = useRouter();
 
+  const isAdminMaster = profile?.tipo_usuario === "admin_master";
   const canAccessData = useMemo(() => {
-    return isMaster || (profile?.role === "admin" && profile?.approved);
-  }, [isMaster, profile]);
+    return isAdminMaster || (profile?.role === "admin" && profile?.approved);
+  }, [isAdminMaster, profile]);
 
   const refreshData = useCallback(async () => {
     if (!canAccessData) return;
@@ -74,22 +91,30 @@ export default function AdminDashboardPage() {
     setIsUsersLoading(true);
     setIsCheckinsLoading(true);
     setIsCommentsLoading(true);
+    setIsSpotsLoading(true);
+    setIsEstLoading(true);
 
     try {
-      const [usersData, checkinsData, commentsData] = await Promise.all([
+      const [usersData, checkinsData, commentsData, spotsData, estData] = await Promise.all([
         fetchJson<{ users: any[] }>("/api/admin/users"),
         fetchJson<{ checkins: any[] }>("/api/admin/checkins"),
         fetchJson<{ comments: any[] }>("/api/admin/comments?limit=50"),
+        fetchJson<{ spots: any[] }>("/api/spots"),
+        fetchJson<{ establishments: any[] }>("/api/establishments"),
       ]);
       setAllUsers(usersData.users || []);
       setAllCheckins(checkinsData.checkins || []);
       setLatestComments(commentsData.comments || []);
+      setAllSpots(spotsData.spots || []);
+      setAllEstablishments(estData.establishments || []);
     } catch (err: any) {
       toast({ variant: "destructive", title: "Falha ao carregar dados", description: err.message });
     } finally {
       setIsUsersLoading(false);
       setIsCheckinsLoading(false);
       setIsCommentsLoading(false);
+      setIsSpotsLoading(false);
+      setIsEstLoading(false);
       setIsRefreshing(false);
     }
   }, [canAccessData]);
@@ -187,6 +212,54 @@ export default function AdminDashboardPage() {
 
   const COLORS = ["#f97316", "#3b82f6", "#10b981", "#a855f7", "#ec4899", "#eab308"];
 
+  const handleCreateSpot = async () => {
+    if (!spotId.trim() || !spotName.trim() || !spotLat || !spotLng) return;
+    try {
+      const res = await fetch("/api/admin/spots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: spotId.trim(),
+          name: spotName.trim(),
+          lat: Number(spotLat),
+          lng: Number(spotLng),
+          type: spotType,
+          image: spotImage || undefined,
+          capacity: spotCapacity ? Number(spotCapacity) : 0,
+          historicalSnippet: spotSnippet || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Erro ao salvar local.");
+      setSpotId("");
+      setSpotName("");
+      setSpotLat("");
+      setSpotLng("");
+      setSpotType("adventure");
+      setSpotImage("");
+      setSpotCapacity("");
+      setSpotSnippet("");
+      refreshData();
+      toast({ title: "Local cadastrado!" });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Falha ao salvar", description: err.message });
+    }
+  };
+
+  const handleDeactivateSpot = async (id: string) => {
+    await fetch(`/api/admin/spots/${id}`, { method: "DELETE" });
+    refreshData();
+  };
+
+  const handleDeactivateEst = async (id: string) => {
+    await fetch(`/api/merchant/establishments/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive: false }),
+    });
+    refreshData();
+  };
+
   if (!isLoaded || isUserLoading) {
     return (
       <div className="min-h-screen bg-[#0d1a14] flex flex-col items-center justify-center">
@@ -269,9 +342,19 @@ export default function AdminDashboardPage() {
             <TabsTrigger value="activity" className="flex-1 rounded-xl font-black uppercase text-[9px] tracking-widest data-[state=active]:bg-primary">
               Relatos
             </TabsTrigger>
-            <TabsTrigger value="approvals" className="flex-1 rounded-xl font-black uppercase text-[9px] tracking-widest data-[state=active]:bg-primary">
-              Aprovações {stats.pendingUsers.length > 0 && <span className="ml-1 w-2 h-2 bg-red-500 rounded-full" />}
+            <TabsTrigger value="spots" className="flex-1 rounded-xl font-black uppercase text-[9px] tracking-widest data-[state=active]:bg-primary">
+              Locais
             </TabsTrigger>
+            {isAdminMaster && (
+              <TabsTrigger value="approvals" className="flex-1 rounded-xl font-black uppercase text-[9px] tracking-widest data-[state=active]:bg-primary">
+                Aprovações {stats.pendingUsers.length > 0 && <span className="ml-1 w-2 h-2 bg-red-500 rounded-full" />}
+              </TabsTrigger>
+            )}
+            {isAdminMaster && (
+              <TabsTrigger value="establishments" className="flex-1 rounded-xl font-black uppercase text-[9px] tracking-widest data-[state=active]:bg-primary">
+                Estabelecimentos
+              </TabsTrigger>
+            )}
             <TabsTrigger value="users" className="flex-1 rounded-xl font-black uppercase text-[9px] tracking-widest data-[state=active]:bg-primary">
               Visitantes
             </TabsTrigger>
@@ -380,7 +463,93 @@ export default function AdminDashboardPage() {
             )}
           </TabsContent>
 
-          <TabsContent value="approvals" className="space-y-4">
+          <TabsContent value="spots" className="space-y-6">
+            <Card className="bg-white/5 border-white/10 p-6 rounded-[2.5rem] space-y-4">
+              <div className="flex items-center gap-2">
+                <PlusCircle className="w-4 h-4 text-primary" />
+                <h3 className="text-[10px] font-black text-white/50 uppercase tracking-widest">Cadastrar Local</h3>
+              </div>
+              <Input placeholder="ID (ex: rio_verde)" value={spotId} onChange={(e) => setSpotId(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl h-12 text-white" />
+              <Input placeholder="Nome do local" value={spotName} onChange={(e) => setSpotName(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl h-12 text-white" />
+              <div className="grid grid-cols-2 gap-4">
+                <Input placeholder="Latitude" value={spotLat} onChange={(e) => setSpotLat(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl h-12 text-white" />
+                <Input placeholder="Longitude" value={spotLng} onChange={(e) => setSpotLng(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl h-12 text-white" />
+              </div>
+              <Input placeholder="URL da imagem" value={spotImage} onChange={(e) => setSpotImage(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl h-12 text-white" />
+              <Input placeholder="Capacidade (opcional)" value={spotCapacity} onChange={(e) => setSpotCapacity(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl h-12 text-white" />
+              <Textarea placeholder="Resumo histórico (opcional)" value={spotSnippet} onChange={(e) => setSpotSnippet(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl text-white min-h-[80px]" />
+              <select
+                className="bg-black/40 border border-white/5 rounded-2xl h-12 text-white px-3 text-[12px]"
+                value={spotType}
+                onChange={(e) => setSpotType(e.target.value)}
+              >
+                <option value="adventure">Natureza</option>
+                <option value="lodging">Hospedagem</option>
+              </select>
+              <Button onClick={handleCreateSpot} className="bg-primary h-12 rounded-2xl font-black uppercase text-[10px]">
+                Salvar Local
+              </Button>
+            </Card>
+
+            <Card className="bg-white/5 border-white/10 p-6 rounded-[2.5rem]">
+              <div className="flex items-center gap-2 mb-4">
+                <MapPin className="w-4 h-4 text-white/40" />
+                <h3 className="text-[10px] font-black text-white/40 uppercase tracking-widest">Locais Ativos</h3>
+              </div>
+              {isSpotsLoading ? (
+                <div className="text-center py-10 text-white/30 text-xs">Carregando...</div>
+              ) : allSpots.length === 0 ? (
+                <div className="text-center py-10 text-white/30 text-xs">Nenhum local cadastrado</div>
+              ) : (
+                <div className="space-y-3">
+                  {allSpots.map((spot) => (
+                    <div key={spot.id} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
+                      <div>
+                        <p className="text-sm font-black text-white">{spot.name}</p>
+                        <p className="text-[9px] text-white/40 uppercase">{spot.id}</p>
+                      </div>
+                      <Button variant="outline" className="border-white/10 text-white/50" onClick={() => handleDeactivateSpot(spot.id)}>
+                        Desativar
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </TabsContent>
+
+          {isAdminMaster && (
+            <TabsContent value="establishments" className="space-y-6">
+              <Card className="bg-white/5 border-white/10 p-6 rounded-[2.5rem]">
+                <div className="flex items-center gap-2 mb-4">
+                  <Store className="w-4 h-4 text-white/40" />
+                  <h3 className="text-[10px] font-black text-white/40 uppercase tracking-widest">Estabelecimentos</h3>
+                </div>
+                {isEstLoading ? (
+                  <div className="text-center py-10 text-white/30 text-xs">Carregando...</div>
+                ) : allEstablishments.length === 0 ? (
+                  <div className="text-center py-10 text-white/30 text-xs">Nenhum estabelecimento cadastrado</div>
+                ) : (
+                  <div className="space-y-3">
+                    {allEstablishments.map((est) => (
+                      <div key={est.id} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
+                        <div>
+                          <p className="text-sm font-black text-white">{est.name}</p>
+                          <p className="text-[9px] text-white/40 uppercase">{est.category || "Sem categoria"}</p>
+                        </div>
+                        <Button variant="outline" className="border-white/10 text-white/50" onClick={() => handleDeactivateEst(est.id)}>
+                          Desativar
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            </TabsContent>
+          )}
+
+          {isAdminMaster && (
+            <TabsContent value="approvals" className="space-y-4">
             <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] px-2 mb-2">Solicitações Pendentes (B2B / GOV)</h3>
             {stats.pendingUsers.length === 0 ? (
               <div className="py-20 text-center bg-white/5 rounded-[3rem] border border-dashed border-white/10">
@@ -418,7 +587,8 @@ export default function AdminDashboardPage() {
                 </Card>
               ))
             )}
-          </TabsContent>
+            </TabsContent>
+          )}
 
           <TabsContent value="users" className="space-y-4">
             <div className="flex items-center justify-between px-2 mb-2">

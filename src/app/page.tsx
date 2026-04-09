@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect } from "react";
@@ -8,39 +7,34 @@ import { Loader2 } from "lucide-react";
 
 export default function HomePage() {
   const router = useRouter();
-  const { user, profile, isUserLoading, isProfileLoading, isMaster } = useItarare();
+  const { user, profile, isUserLoading, isProfileLoading } = useItarare();
+  const isMaster = profile?.tipo_usuario === "admin_master";
 
   useEffect(() => {
     if (isUserLoading) return;
 
-    // Se não há usuário, vai para login
     if (!user) {
       router.replace("/login");
       return;
     }
 
-    // Se é o Douglas, ignora qualquer carregamento de perfil e vai pro Dashboard
-    if (isMaster) {
-      router.replace("/admin/dashboard");
+    if (isProfileLoading) return;
+
+    if (profile) {
+      if (profile.role === "admin") {
+        router.replace("/admin/dashboard");
+        return;
+      }
+      if (profile.role === "merchant") {
+        router.replace("/merchant/dashboard");
+        return;
+      }
+      router.replace("/explore");
       return;
     }
 
-    // Para outros usuários, aguarda o carregamento do perfil para decidir o destino
-    if (isProfileLoading) return;
-
-    if (profile && profile.approved) {
-      if (profile.tipo_usuario === "prefeitura") {
-        router.replace("/admin/dashboard");
-      } else if (profile.tipo_usuario === "logista") {
-        router.replace("/merchant/dashboard");
-      } else {
-        router.replace("/explore");
-      }
-    } else {
-      // Se logado mas sem perfil ou não aprovado, vai para explorar
-      router.replace("/explore");
-    }
-  }, [user, profile, isUserLoading, isProfileLoading, isMaster, router]);
+    router.replace("/explore");
+  }, [user, profile, isUserLoading, isProfileLoading, router]);
 
   return (
     <div className="min-h-screen bg-[#0d1a14] flex flex-col items-center justify-center space-y-6">

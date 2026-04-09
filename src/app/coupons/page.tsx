@@ -1,16 +1,28 @@
 
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useItarare } from "@/hooks/use-itarare";
 import { CouponCard } from "@/components/CouponCard";
 import { BottomNav } from "@/components/BottomNav";
 import { Toaster } from "@/components/ui/toaster";
 import { toast } from "@/hooks/use-toast";
 import { Wallet, Info, Sparkles, Tag } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function CouponsPage() {
-  const { coupons, useCoupon, t } = useItarare();
+  const { coupons, useCoupon, t, user, profile, isUserLoading } = useItarare();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.replace("/login");
+      return;
+    }
+    if (!isUserLoading && user && profile?.role && profile.role !== "tourist") {
+      router.replace(profile.role === "merchant" ? "/merchant/dashboard" : "/admin/dashboard");
+    }
+  }, [user, profile?.role, isUserLoading, router]);
 
   const handleUseCoupon = (id: string) => {
     useCoupon(id);

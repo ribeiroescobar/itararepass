@@ -48,7 +48,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const MASTER_EMAILS: string[] = [];
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
@@ -73,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const router = useRouter();
 
-  const isMaster = useMemo(() => false, []);
+  const isMaster = useMemo(() => profile?.tipo_usuario === "admin_master", [profile?.tipo_usuario]);
 
   useEffect(() => {
     let active = true;
@@ -144,13 +143,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         toast({ title: "Cadastro Recebido", description: "Aguarde a liberação do Administrador." });
       } else {
         toast({ title: "Bem-vindo ao Itararé Pass!" });
-        const destination =
-          data.profile.role === "admin"
-            ? "/admin/dashboard"
-            : data.profile.role === "merchant"
-            ? "/merchant/dashboard"
-            : "/explore";
-        router.push(destination);
+        if (data.profile.role === "admin") {
+          router.push("/admin/dashboard");
+        } else if (data.profile.role === "merchant") {
+          router.push("/merchant/dashboard");
+        } else {
+          router.push("/explore");
+        }
       }
     } catch (err: any) {
       if (err?.message?.includes("E-mail já existe")) {
@@ -177,9 +176,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(data.user);
       setProfile(data.profile);
       toast({ title: "Acesso validado!" });
-      if (data.profile.role === "admin" && data.profile.approved) {
+      if (data.profile.role === "admin") {
         router.push("/admin/dashboard");
-      } else if (data.profile.role === "merchant" && data.profile.approved) {
+      } else if (data.profile.role === "merchant") {
         router.push("/merchant/dashboard");
       } else {
         router.push("/explore");
@@ -205,7 +204,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateUserStatus = async (targetUid: string, data: Partial<UserProfile>) => {
-    if (!isAuthorized("admin")) return;
+    if (!isMaster) return;
     await fetchJson(`/api/admin/users/${targetUid}`, {
       method: "PATCH",
       body: JSON.stringify(data),

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { dbQuery } from "@/lib/db";
 import { mapUserProfile, type DbUser } from "@/lib/user-mappers";
-import { requireAdmin } from "@/lib/admin";
+import { requireAdminMaster } from "@/lib/admin";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -13,7 +13,7 @@ const schema = z.object({
 });
 
 export async function PATCH(req: Request, context: { params: { id: string } }) {
-  const admin = await requireAdmin();
+  const admin = await requireAdminMaster();
   if (!admin.ok) {
     return NextResponse.json({ error: "Sem permissão." }, { status: admin.reason === "forbidden" ? 403 : 401 });
   }

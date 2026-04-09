@@ -53,6 +53,22 @@ interface BusinessContextType {
 
 const BusinessContext = createContext<BusinessContextType | undefined>(undefined);
 
+type ApiSpot = {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  type: SpotType;
+  image?: string;
+  capacity: number;
+  currentLoad: number;
+  averageRating: number;
+  cityId: string;
+  historicalSnippet?: string;
+};
+
+type ApiCoupon = Coupon;
+
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...options,
@@ -74,6 +90,8 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguage] = useState<Language>("pt");
   const [userCheckins, setUserCheckins] = useState<any[]>([]);
   const [userCoupons, setUserCoupons] = useState<any[]>([]);
+  const [baseSpots, setBaseSpots] = useState<ApiSpot[]>([]);
+  const [baseCoupons, setBaseCoupons] = useState<ApiCoupon[]>([]);
 
   const t = useCallback(
     (key: string) => {
@@ -115,26 +133,55 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user]);
 
+  useEffect(() => {
+    let active = true;
+    fetchJson<{ spots: ApiSpot[] }>("/api/spots")
+      .then((data) => {
+        if (!active) return;
+        setBaseSpots(data.spots || []);
+      })
+      .catch(() => {
+        if (!active) return;
+        setBaseSpots([]);
+      });
+
+    fetchJson<{ coupons: ApiCoupon[] }>("/api/coupons/catalog")
+      .then((data) => {
+        if (!active) return;
+        setBaseCoupons(data.coupons || []);
+      })
+      .catch(() => {
+        if (!active) return;
+        setBaseCoupons([]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const spots = useMemo(() => {
-    return INITIAL_SPOTS.map((spot) => {
+    const sourceSpots = baseSpots.length > 0 ? baseSpots : INITIAL_SPOTS;
+    return sourceSpots.map((spot) => {
       const visit = userCheckins?.find((c) => c.spotId === spot.id);
       return {
         ...spot,
-        name: t(`${spot.id}_name`),
+        name: spot.name || t(`${spot.id}_name`),
         visited: !!visit,
-        historicalSnippet: visit?.insight || t(`${spot.id}_snippet`),
+        historicalSnippet: visit?.insight || spot.historicalSnippet || t(`${spot.id}_snippet`),
         insightLanguage: visit?.language || "pt",
         userRating: visit?.rating || 0,
       };
     });
-  }, [userCheckins, language, t]);
+  }, [userCheckins, language, t, baseSpots]);
 
   const coupons = useMemo(() => {
     const adventureVisitedCount = spots.filter((s) => s.type === "adventure" && s.visited).length;
     const lodgingVisited = spots.some((s) => s.type === "lodging" && s.visited);
     const profileCompleted = !!profile?.completed;
 
-    return INITIAL_COUPONS.map((coupon) => {
+    const sourceCoupons = baseCoupons.length > 0 ? baseCoupons : INITIAL_COUPONS;
+    return sourceCoupons.map((coupon) => {
       const isUsed = userCoupons?.some((uc) => uc.id === coupon.id && uc.used);
 
       let unlocked = true;
@@ -159,16 +206,16 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
 
       return {
         ...coupon,
-        businessName: t(`${coupon.id}_name`),
-        address: t(`${coupon.id}_addr`),
-        discount: t(`${coupon.id}_discount`),
+        businessName: coupon.businessName || t(`${coupon.id}_name`),
+        address: coupon.address || t(`${coupon.id}_addr`),
+        discount: coupon.discount || t(`${coupon.id}_discount`),
         used: !!isUsed,
         locked: !unlocked,
         requirementLabel: reqLabel,
         statusLabel: statusLabel,
       };
     });
-  }, [spots, userCoupons, profile?.completed, language, t]);
+  }, [spots, userCoupons, profile?.completed, language, t, baseCoupons]);
 
   const checkIn = async (spotId: string, insight?: string, lang?: string) => {
     if (!user) return;
@@ -209,7 +256,8 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
 
   const addComment = async (spotId: string, text: string, photo?: string, rating?: number) => {
     if (!user) return;
-    const spot = INITIAL_SPOTS.find((s) => s.id === spotId);
+    const sourceSpots = baseSpots.length > 0 ? baseSpots : INITIAL_SPOTS;
+    const spot = sourceSpots.find((s) => s.id === spotId);
     await fetchJson("/api/comments", {
       method: "POST",
       body: JSON.stringify({

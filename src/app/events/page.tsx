@@ -1,15 +1,27 @@
 
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { BottomNav } from "@/components/BottomNav";
 import { useItarare } from "@/hooks/use-itarare";
 import { Calendar, MapPin, ChevronLeft, Ticket } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function EventsPage() {
-  const { events, t } = useItarare();
+  const { events, t, user, profile, isUserLoading } = useItarare();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.replace("/login");
+      return;
+    }
+    if (!isUserLoading && user && profile?.role && profile.role !== "tourist") {
+      router.replace(profile.role === "merchant" ? "/merchant/dashboard" : "/admin/dashboard");
+    }
+  }, [user, profile?.role, isUserLoading, router]);
 
   return (
     <div className="min-h-screen bg-[#0d1a14] pb-32 px-6">

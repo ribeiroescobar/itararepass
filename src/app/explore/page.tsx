@@ -47,8 +47,12 @@ export default function ExplorePage() {
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.replace("/login");
+      return;
     }
-  }, [user, isUserLoading, router]);
+    if (!isUserLoading && user && profile?.role && profile.role !== "tourist") {
+      router.replace(profile.role === "merchant" ? "/merchant/dashboard" : "/admin/dashboard");
+    }
+  }, [user, profile?.role, isUserLoading, router]);
 
   if (isUserLoading || !user) return null;
 
