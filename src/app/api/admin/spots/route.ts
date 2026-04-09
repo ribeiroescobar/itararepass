@@ -72,3 +72,20 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true });
 }
+
+export async function GET() {
+  const admin = await requireAdmin();
+  if (!admin.ok) {
+    return NextResponse.json({ error: "Sem permissão." }, { status: admin.reason === "forbidden" ? 403 : 401 });
+  }
+
+  const result = await dbQuery(
+    `SELECT id, city_id as "cityId", name, lat, lng, type, image,
+      capacity, current_load as "currentLoad", average_rating as "averageRating",
+      historical_snippet as "historicalSnippet", is_active as "isActive"
+     FROM spots
+     ORDER BY name ASC`
+  );
+
+  return NextResponse.json({ spots: result.rows });
+}

@@ -84,7 +84,12 @@ export default function MerchantDashboard() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Erro ao cadastrar.");
+      if (!res.ok) {
+        if (res.status === 403) {
+          throw new Error("Sem permissão. Sua conta precisa estar aprovada.");
+        }
+        throw new Error(data?.error || "Erro ao cadastrar.");
+      }
       setEstablishments((prev) => [data.establishment, ...prev]);
       setEstName("");
       setEstDescription("");
@@ -118,7 +123,12 @@ export default function MerchantDashboard() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Erro ao criar cupom.");
+      if (!res.ok) {
+        if (res.status === 403) {
+          throw new Error("Sem permissão. Sua conta precisa estar aprovada.");
+        }
+        throw new Error(data?.error || "Erro ao criar cupom.");
+      }
       setCouponTitle("");
       setCouponDiscount("");
       setCouponMinAdventures("");

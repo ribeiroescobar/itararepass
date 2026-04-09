@@ -100,7 +100,7 @@ export default function AdminDashboardPage() {
         fetchJson<{ users: any[] }>("/api/admin/users"),
         fetchJson<{ checkins: any[] }>("/api/admin/checkins"),
         fetchJson<{ comments: any[] }>("/api/admin/comments?limit=50"),
-        fetchJson<{ spots: any[] }>("/api/spots"),
+        fetchJson<{ spots: any[] }>("/api/admin/spots"),
         fetchJson<{ establishments: any[] }>("/api/establishments"),
       ]);
       setAllUsers(usersData.users || []);
@@ -249,6 +249,15 @@ export default function AdminDashboardPage() {
 
   const handleDeactivateSpot = async (id: string) => {
     await fetch(`/api/admin/spots/${id}`, { method: "DELETE" });
+    refreshData();
+  };
+
+  const handleReactivateSpot = async (id: string) => {
+    await fetch(`/api/admin/spots/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive: true }),
+    });
     refreshData();
   };
 
@@ -500,11 +509,11 @@ export default function AdminDashboardPage() {
               </div>
               {isSpotsLoading ? (
                 <div className="text-center py-10 text-white/30 text-xs">Carregando...</div>
-              ) : allSpots.length === 0 ? (
+              ) : allSpots.filter((spot) => spot.isActive !== false).length === 0 ? (
                 <div className="text-center py-10 text-white/30 text-xs">Nenhum local cadastrado</div>
               ) : (
                 <div className="space-y-3">
-                  {allSpots.map((spot) => (
+                  {allSpots.filter((spot) => spot.isActive !== false).map((spot) => (
                     <div key={spot.id} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
                       <div>
                         <p className="text-sm font-black text-white">{spot.name}</p>
@@ -512,6 +521,32 @@ export default function AdminDashboardPage() {
                       </div>
                       <Button variant="outline" className="border-white/10 text-white/50" onClick={() => handleDeactivateSpot(spot.id)}>
                         Desativar
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            <Card className="bg-white/5 border-white/10 p-6 rounded-[2.5rem]">
+              <div className="flex items-center gap-2 mb-4">
+                <MapPin className="w-4 h-4 text-white/40" />
+                <h3 className="text-[10px] font-black text-white/40 uppercase tracking-widest">Locais Desativados</h3>
+              </div>
+              {isSpotsLoading ? (
+                <div className="text-center py-10 text-white/30 text-xs">Carregando...</div>
+              ) : allSpots.filter((spot) => spot.isActive === false).length === 0 ? (
+                <div className="text-center py-10 text-white/30 text-xs">Nenhum local desativado</div>
+              ) : (
+                <div className="space-y-3">
+                  {allSpots.filter((spot) => spot.isActive === false).map((spot) => (
+                    <div key={spot.id} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
+                      <div>
+                        <p className="text-sm font-black text-white">{spot.name}</p>
+                        <p className="text-[9px] text-white/40 uppercase">{spot.id}</p>
+                      </div>
+                      <Button variant="outline" className="border-white/10 text-white/50" onClick={() => handleReactivateSpot(spot.id)}>
+                        Reativar
                       </Button>
                     </div>
                   ))}
