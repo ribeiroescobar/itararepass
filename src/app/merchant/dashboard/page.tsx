@@ -371,17 +371,17 @@ export default function MerchantDashboard() {
   const inactiveCoupons = managedCoupons.filter((coupon) => coupon.isActive === false);
 
   return (
-    <div className="min-h-screen bg-[#0d1a14] pb-32 px-6">
-      <header className="pt-10 pb-8 flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-black text-white uppercase tracking-tight italic">
+    <div className="min-h-screen bg-[#0d1a14] pb-32 px-4 sm:px-6">
+      <header className="flex flex-col gap-4 pb-8 pt-8 sm:flex-row sm:items-center sm:justify-between sm:pt-10">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-black text-white uppercase tracking-tight italic sm:text-3xl">
             {isMaster ? "Painel Comercial Global" : "Painel do Comerciante"}
           </h1>
-          <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">
+          <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-white/40">
             {isMaster ? "Gestao de Cupons e Beneficios" : "Gestao de Recompensas B2B"}
           </p>
         </div>
-        <div className="w-12 h-12 bg-primary/20 rounded-2xl flex items-center justify-center border border-primary/30 shadow-xl shadow-primary/10">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/30 bg-primary/20 shadow-xl shadow-primary/10">
           {isMaster ? <ShieldCheck className="w-6 h-6 text-primary" /> : <Store className="w-6 h-6 text-primary" />}
         </div>
       </header>
@@ -428,7 +428,7 @@ export default function MerchantDashboard() {
           </div>
         </Card>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Card className="bg-white/5 border-white/10 p-6 rounded-[2.5rem] shadow-xl">
             <TrendingUp className="w-5 h-5 text-green-500 mb-3" />
             <p className="text-2xl font-black text-white">{activeCoupons.length}</p>

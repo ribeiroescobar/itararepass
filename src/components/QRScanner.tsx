@@ -36,6 +36,7 @@ export function QRScanner({
 
   useEffect(() => {
     let isMounted = true;
+    let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
 
     const startScanner = async () => {
       try {
@@ -45,9 +46,19 @@ export function QRScanner({
           const html5QrCode = new Html5Qrcode(scanRegionId);
           scannerRef.current = html5QrCode;
 
+          fallbackTimer = setTimeout(() => {
+            if (isMounted) {
+              setIsInitializing(false);
+            }
+          }, 2500);
+
           await html5QrCode.start(
             { facingMode: "environment" },
-            { fps: 20, qrbox: { width: 250, height: 250 } },
+            {
+              fps: 10,
+              aspectRatio: 1,
+              qrbox: { width: 220, height: 220 },
+            },
             (decodedText) => {
               if (isMounted && !isHandlingScanRef.current) {
                 handleScanSuccess(decodedText.trim());
@@ -55,6 +66,9 @@ export function QRScanner({
             },
             () => {}
           );
+          if (fallbackTimer) {
+            clearTimeout(fallbackTimer);
+          }
           if (isMounted) {
             setIsInitializing(false);
           }
@@ -74,6 +88,9 @@ export function QRScanner({
 
     return () => {
       isMounted = false;
+      if (fallbackTimer) {
+        clearTimeout(fallbackTimer);
+      }
       if (scannerRef.current && scannerRef.current.isScanning) {
         scannerRef.current.stop().catch(() => {});
       }

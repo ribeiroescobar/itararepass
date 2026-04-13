@@ -34,13 +34,13 @@ function ProfileInfoCard({
   value?: string;
 }) {
   return (
-    <div className="flex items-center gap-4 p-4 bg-black/40 rounded-2xl border border-white/5">
-      <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center">
+    <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/5 bg-black/40 p-4 sm:gap-4">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/5">
         {icon}
       </div>
-      <div>
-        <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">{label}</p>
-        <p className="text-xs font-bold text-white/80">{value || "-"}</p>
+      <div className="min-w-0">
+        <p className="text-[8px] font-black uppercase tracking-widest text-white/30">{label}</p>
+        <p className="break-words text-sm font-bold leading-snug text-white/80">{value || "-"}</p>
       </div>
     </div>
   );
@@ -160,38 +160,44 @@ export default function ProfilePage() {
         : <User className="w-4 h-4 text-green-400" />;
 
   return (
-    <div className="min-h-screen pb-32 px-6">
-      <header className="pt-10 pb-8 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-primary/20 rounded-2xl flex items-center justify-center border border-primary/30">
+    <div className="min-h-screen px-4 pb-32 sm:px-6">
+      <header className="flex flex-col gap-4 pb-8 pt-8 sm:flex-row sm:items-center sm:justify-between sm:pt-10">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-primary/30 bg-primary/20">
             <User className="w-6 h-6 text-primary" />
           </div>
-          <div>
-            <h1 className="text-2xl font-black text-white uppercase tracking-tight">{t("profile_title")}</h1>
-            <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">{roleLabel}</p>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-black uppercase tracking-tight text-white sm:text-3xl">{t("profile_title")}</h1>
+            <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-white/40">{roleLabel}</p>
           </div>
         </div>
 
-        <Button onClick={logout} variant="ghost" className="bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl h-12 px-4 gap-2 text-[10px] font-black uppercase tracking-widest">
+        <Button
+          onClick={logout}
+          variant="ghost"
+          className="h-12 w-full gap-2 rounded-xl bg-red-500/10 px-4 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-500/20 sm:w-auto"
+        >
           <LogOut className="w-4 h-4" /> {language === "en" ? "Logout" : "Sair"}
         </Button>
       </header>
 
       <main className="max-w-xl mx-auto space-y-6">
-        <div className="bg-white/5 border border-white/10 p-4 rounded-2xl flex items-center justify-between shadow-xl">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center">
+        <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-4 shadow-xl sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/5">
               {roleIcon}
             </div>
-            <div>
-              <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">{copy.accountStatus}</p>
-              <p className="text-xs font-black text-white uppercase">{roleLabel} - {profile?.approved ? copy.verified : copy.pending}</p>
+            <div className="min-w-0">
+              <p className="text-[8px] font-black uppercase tracking-widest text-white/30">{copy.accountStatus}</p>
+              <p className="break-words text-xs font-black uppercase leading-snug text-white">
+                {roleLabel} - {profile?.approved ? copy.verified : copy.pending}
+              </p>
             </div>
           </div>
           {isTourist && (
-            <div className="bg-green-500/20 px-3 py-1 rounded-full border border-green-500/30 flex items-center gap-1.5">
+            <div className="flex w-fit items-center gap-1.5 rounded-full border border-green-500/30 bg-green-500/20 px-3 py-1">
               <CheckCircle2 className="w-3 h-3 text-green-500" />
-              <span className="text-[8px] font-black text-green-500 uppercase">{copy.benefitBadge}</span>
+              <span className="text-[8px] font-black uppercase text-green-500">{copy.benefitBadge}</span>
             </div>
           )}
         </div>
@@ -220,7 +226,7 @@ export default function ProfilePage() {
         )}
 
         {isTourist && (
-          <section className="bg-white/5 border border-white/10 rounded-[3rem] p-8 space-y-6 shadow-2xl">
+          <section className="space-y-6 rounded-[2.5rem] border border-white/10 bg-white/5 p-5 shadow-2xl sm:rounded-[3rem] sm:p-8">
             <div className="flex items-center gap-3">
               <User className="w-5 h-5 text-primary" />
               <h3 className="text-sm font-black text-white uppercase tracking-widest">{copy.personalData}</h3>
@@ -228,11 +234,11 @@ export default function ProfilePage() {
 
             <div className="grid grid-cols-1 gap-4">
               <ProfileInfoCard icon={<Mail className="w-4 h-4 text-white/30" />} label={copy.email} value={profile?.email} />
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <ProfileInfoCard icon={<MapPin className="w-4 h-4 text-white/30" />} label={copy.origin} value={profile?.originCity} />
                 <ProfileInfoCard icon={<Phone className="w-4 h-4 text-white/30" />} label={copy.whatsapp} value={profile?.whatsapp} />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <ProfileInfoCard icon={<Calendar className="w-4 h-4 text-white/30" />} label={copy.age} value={translateAge(profile?.ageGroup, language)} />
                 <ProfileInfoCard icon={<Heart className="w-4 h-4 text-white/30" />} label={copy.interest} value={profile?.interest ? t(`interest_${profile.interest}`) : undefined} />
               </div>
@@ -246,7 +252,7 @@ export default function ProfilePage() {
         )}
 
         {isMerchant && (
-          <section className="bg-white/5 border border-white/10 rounded-[3rem] p-8 space-y-6 shadow-2xl">
+          <section className="space-y-6 rounded-[2.5rem] border border-white/10 bg-white/5 p-5 shadow-2xl sm:rounded-[3rem] sm:p-8">
             <div className="flex items-center gap-3">
               <Store className="w-5 h-5 text-primary" />
               <h3 className="text-sm font-black text-white uppercase tracking-widest">{copy.businessData}</h3>
@@ -254,11 +260,11 @@ export default function ProfilePage() {
 
             <div className="grid grid-cols-1 gap-4">
               <ProfileInfoCard icon={<Building2 className="w-4 h-4 text-white/30" />} label={copy.businessName} value={profile?.businessName || profile?.name} />
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <ProfileInfoCard icon={<Mail className="w-4 h-4 text-white/30" />} label={copy.email} value={profile?.email} />
                 <ProfileInfoCard icon={<Phone className="w-4 h-4 text-white/30" />} label={copy.whatsapp} value={profile?.whatsapp} />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <ProfileInfoCard icon={<Briefcase className="w-4 h-4 text-white/30" />} label={copy.contact} value={profile?.name} />
                 <ProfileInfoCard icon={<ShieldCheck className="w-4 h-4 text-white/30" />} label={copy.cnpj} value={profile?.cnpj} />
               </div>
@@ -267,7 +273,7 @@ export default function ProfilePage() {
         )}
 
         {isGovernment && (
-          <section className="bg-white/5 border border-white/10 rounded-[3rem] p-8 space-y-6 shadow-2xl">
+          <section className="space-y-6 rounded-[2.5rem] border border-white/10 bg-white/5 p-5 shadow-2xl sm:rounded-[3rem] sm:p-8">
             <div className="flex items-center gap-3">
               <Building2 className="w-5 h-5 text-blue-400" />
               <h3 className="text-sm font-black text-white uppercase tracking-widest">{copy.governmentData}</h3>
@@ -275,7 +281,7 @@ export default function ProfilePage() {
 
             <div className="grid grid-cols-1 gap-4">
               <ProfileInfoCard icon={<Building2 className="w-4 h-4 text-white/30" />} label={copy.institution} value={profile?.name} />
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <ProfileInfoCard icon={<Mail className="w-4 h-4 text-white/30" />} label={copy.email} value={profile?.email} />
                 <ProfileInfoCard icon={<Phone className="w-4 h-4 text-white/30" />} label={copy.whatsapp} value={profile?.whatsapp} />
               </div>
@@ -285,7 +291,7 @@ export default function ProfilePage() {
         )}
 
         {isMaster && (
-          <section className="bg-white/5 border border-white/10 rounded-[3rem] p-8 space-y-6 shadow-2xl">
+          <section className="space-y-6 rounded-[2.5rem] border border-white/10 bg-white/5 p-5 shadow-2xl sm:rounded-[3rem] sm:p-8">
             <div className="flex items-center gap-3">
               <ShieldCheck className="w-5 h-5 text-purple-400" />
               <h3 className="text-sm font-black text-white uppercase tracking-widest">{copy.internalArea}</h3>
@@ -303,7 +309,7 @@ export default function ProfilePage() {
           </section>
         )}
 
-        <div className="bg-blue-950/20 border border-blue-500/10 p-6 rounded-[2rem] flex items-center gap-4">
+        <div className="flex items-start gap-4 rounded-[2rem] border border-blue-500/10 bg-blue-950/20 p-5 sm:items-center sm:p-6">
           <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center shrink-0">
             <ShieldCheck className="w-5 h-5 text-blue-500" />
           </div>

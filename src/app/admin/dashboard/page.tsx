@@ -59,6 +59,27 @@ async function fetchJson<T>(url: string): Promise<T> {
   return data as T;
 }
 
+function normalizeOriginCity(value?: string | null) {
+  if (!value) return "Outra";
+
+  const withoutState = value.split(" - ")[0]?.trim() || value.trim();
+  const normalizedKey = withoutState
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+  if (!normalizedKey) return "Outra";
+  if (normalizedKey === "itarare") return "Itararé";
+
+  return withoutState
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 export default function AdminDashboardPage() {
   const { isUserLoading, profile, isMaster, t, spots, updateUserStatus, user } = useItarare();
   const [isLoaded, setIsLoaded] = useState(false);
@@ -205,7 +226,7 @@ export default function AdminDashboardPage() {
         data.totalTourists++;
         data.touristList.push(u);
 
-        const city = u.originCity || "Outra";
+        const city = normalizeOriginCity(u.originCity);
         cityCounts[city] = (cityCounts[city] || 0) + 1;
 
         if (u.interest) {
@@ -240,7 +261,9 @@ export default function AdminDashboardPage() {
         ? (allEstablishments.filter((e) => e.premiumEnabled).length / allEstablishments.length) * 100
         : 0;
 
-    data.cities = Object.entries(cityCounts).map(([name, value]) => ({ name, value }));
+    data.cities = Object.entries(cityCounts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
     data.interests = Object.entries(interestCounts).map(([name, count]) => ({ name, count }));
 
     data.popularity = spots
@@ -268,6 +291,10 @@ export default function AdminDashboardPage() {
 
   const interestsTotal = useMemo(() => stats.interests.reduce((sum, item) => sum + item.count, 0), [stats.interests]);
   const citiesTotal = useMemo(() => stats.cities.reduce((sum, item) => sum + item.value, 0), [stats.cities]);
+  const cityChartData = useMemo(
+    () => (stats.cities.length > 0 ? stats.cities : [{ name: "Sem dados", value: 1 }]),
+    [stats.cities]
+  );
 
   const handleCreateSpot = async () => {
     if ((!editSpotId && !spotId.trim()) || !spotName.trim() || !spotLat || !spotLng) return;
@@ -566,13 +593,22 @@ export default function AdminDashboardPage() {
                 <div className="h-[280px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={stats.cities.length > 0 ? stats.cities : [{ name: "Sem Dados", value: 1 }]} innerRadius={70} outerRadius={95} paddingAngle={8} dataKey="value">
-                        {stats.cities.map((_, i) => (
+                      <Pie data={cityChartData} innerRadius={70} outerRadius={95} paddingAngle={8} dataKey="value">
+                        {cityChartData.map((_, i) => (
                           <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="none" />
                         ))}
                       </Pie>
-                      <Tooltip contentStyle={chartTooltipStyle} formatter={(value: number) => [`${value} (${formatPercent(value, citiesTotal || 1)})`, "Participacao"]} />
-                      <Legend verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: "9px" }} />
+                      <Tooltip
+                        contentStyle={{ ...chartTooltipStyle, color: "#f8fafc" }}
+                        itemStyle={{ color: "#f8fafc" }}
+                        formatter={(value: number) => [`${value} (${formatPercent(value, citiesTotal || 1)})`, "Participacao"]}
+                      />
+                      <Legend
+                        verticalAlign="bottom"
+                        align="center"
+                        wrapperStyle={{ fontSize: "9px", color: "rgba(248,250,252,0.78)" }}
+                        formatter={(value) => <span className="text-white/70">{value}</span>}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -931,7 +967,7 @@ export default function AdminDashboardPage() {
                             <p className="text-[9px] text-white/20">{u.email}</p>
                           </td>
                           <td className="px-8 py-5">
-                            <span className="text-[10px] font-black text-white/60">{u.originCity || "Outra"}</span>
+                            <span className="text-[10px] font-black text-white/60">{normalizeOriginCity(u.originCity)}</span>
                           </td>
                           <td className="px-8 py-5">
                             <Badge variant="outline" className="text-[8px] uppercase border-white/10 text-primary">
