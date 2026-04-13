@@ -88,7 +88,7 @@ export default function TouristAuthPage() {
     setIsLoadingCities(true);
     setOriginCity("");
 
-    fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${originState}/municipios?orderBy=nome`, {
+    fetch(`/api/geo/cities?uf=${originState}`, {
       signal: controller.signal,
     })
       .then((res) => {
@@ -97,8 +97,8 @@ export default function TouristAuthPage() {
         }
         return res.json();
       })
-      .then((data: Array<{ nome: string }>) => {
-        setCityOptions((data || []).map((city) => city.nome));
+      .then((data: { cities?: string[] }) => {
+        setCityOptions(data.cities || []);
       })
       .catch((err) => {
         if (err?.name === "AbortError") return;
