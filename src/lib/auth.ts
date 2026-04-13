@@ -75,6 +75,11 @@ function signCouponPartsV2(parts: { u: string; e: string; x: string }) {
   return createHmac("sha256", getJwtSecret()).update(payload).digest("hex").slice(0, 16).toUpperCase();
 }
 
+function signCouponPartsV3(parts: { c: string; x: string }) {
+  const payload = `${parts.c}.${parts.x}`;
+  return createHmac("sha256", getJwtSecret()).update(payload).digest("base64url").slice(0, 12);
+}
+
 // Hash a raw password before storing it in the database.
 export async function hashPassword(password: string) {
   return bcrypt.hash(password, 10);
@@ -98,18 +103,41 @@ export function verifySession(token: string) {
 // Issues a short-lived token to validate a coupon on site.
 export function signCouponValidationToken(payload: { claimId: string; establishmentId: string }) {
   const compactPayload = {
-    u: toUpperHexUuid(payload.claimId),
-    e: toUpperHexUuid(payload.establishmentId),
-    x: (Math.floor(Date.now() / 1000) + 60 * 30).toString(36).toUpperCase(),
+    c: toCompactUuid(payload.claimId),
+    x: (Math.floor(Date.now() / 1000) + 60 * 30).toString(36),
   };
-  const signature = signCouponPartsV2(compactPayload);
-  return `CV.${compactPayload.u}.${compactPayload.e}.${compactPayload.x}.${signature}`;
+  const signature = signCouponPartsV3(compactPayload);
+  return `CV.${compactPayload.c}.${compactPayload.x}.${signature}`;
 }
 
 // Verifies the coupon validation token scanned by the merchant.
 export function verifyCouponValidationToken(token: string) {
   const normalizedToken = token.trim().replace(/\s+/g, "");
   const parts = normalizedToken.split(".");
+
+  if (parts.length === 4) {
+    const [version, c, x, signature] = parts;
+    if (version.toUpperCase() !== "CV" || !c || !x || !signature) {
+      throw new Error("Invalid coupon token");
+    }
+
+    const expectedSignature = signCouponPartsV3({ c, x });
+    const receivedBuffer = Buffer.from(signature);
+    const expectedBuffer = Buffer.from(expectedSignature);
+    if (receivedBuffer.length !== expectedBuffer.length || !timingSafeEqual(receivedBuffer, expectedBuffer)) {
+      throw new Error("Invalid coupon signature");
+    }
+
+    const expiresAt = parseInt(x, 36);
+    if (!Number.isFinite(expiresAt) || expiresAt <= Math.floor(Date.now() / 1000)) {
+      throw new Error("Expired coupon token");
+    }
+
+    return {
+      claimId: fromCompactUuid(c),
+      establishmentId: "",
+    };
+  }
 
   if (parts.length === 5) {
     const [version, u, e, x, signature] = parts;

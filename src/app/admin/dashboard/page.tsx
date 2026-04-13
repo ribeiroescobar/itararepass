@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   PlusCircle,
   MapPin,
+  Trash2,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { BottomNav } from "@/components/BottomNav";
@@ -415,6 +416,29 @@ export default function AdminDashboardPage() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isActive: false }),
+    });
+    refreshData();
+  };
+
+  const handlePermanentDeleteEst = async (id: string, name: string) => {
+    const confirmed = window.confirm(`Tem certeza que deseja excluir permanentemente o estabelecimento "${name}"? Essa acao nao pode ser desfeita.`);
+    if (!confirmed) return;
+
+    const res = await fetch(`/api/merchant/establishments/${id}`, { method: "DELETE" });
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok) {
+      toast({
+        variant: "destructive",
+        title: "Falha ao excluir",
+        description: data?.error || "Nao foi possivel excluir o estabelecimento.",
+      });
+      return;
+    }
+
+    toast({
+      title: "Estabelecimento excluido",
+      description: `${name} foi removido permanentemente.`,
     });
     refreshData();
   };
@@ -874,9 +898,19 @@ export default function AdminDashboardPage() {
                           <p className="text-sm font-black text-white">{est.name}</p>
                           <p className="text-[9px] text-white/40 uppercase">{est.category || "Sem categoria"}</p>
                         </div>
-                        <Button variant="outline" className="border-white/10 text-white/50" onClick={() => handleReactivateEst(est.id)}>
-                          Reativar
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button variant="outline" className="border-white/10 text-white/50" onClick={() => handleReactivateEst(est.id)}>
+                            Reativar
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="border-red-500/20 text-red-300 hover:bg-red-950/30 hover:text-red-200"
+                            onClick={() => handlePermanentDeleteEst(est.id, est.name)}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Excluir
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>

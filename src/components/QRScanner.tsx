@@ -17,6 +17,8 @@ interface QRScannerProps {
   scanHint?: string;
 }
 
+type ScannerMode = "native" | "fallback" | null;
+
 export function QRScanner({
   onScan,
   onClose,
@@ -31,92 +33,167 @@ export function QRScanner({
   const [scanning, setScanning] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [scannerMode, setScannerMode] = useState<ScannerMode>(null);
+  const fallbackRegionId = useId().replace(/:/g, "");
+
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const nativeLoopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isHandlingScanRef = useRef(false);
-  const scanRegionId = useId().replace(/:/g, "");
 
   useEffect(() => {
     let isMounted = true;
-    let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const startScanner = async () => {
+    const stopNativeStream = () => {
+      if (nativeLoopRef.current) {
+        clearTimeout(nativeLoopRef.current);
+        nativeLoopRef.current = null;
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+    };
+
+    const stopFallbackScanner = async () => {
+      if (!scannerRef.current) return;
+      const scanner = scannerRef.current;
+      if (scanner.isScanning) {
+        await scanner.stop().catch(() => {});
+      }
       try {
+        scanner.clear();
+      } catch {}
+      scannerRef.current = null;
+    };
+
+    const handleNativeDetection = async (detector: any) => {
+      if (!isMounted || !videoRef.current || isHandlingScanRef.current) return;
+
+      try {
+        if (videoRef.current.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+          const codes = await detector.detect(videoRef.current);
+          const rawValue = codes?.find((code: any) => typeof code?.rawValue === "string")?.rawValue;
+          if (rawValue) {
+            await handleScanSuccess(rawValue.trim());
+            return;
+          }
+        }
+      } catch {}
+
+      nativeLoopRef.current = setTimeout(() => {
+        void handleNativeDetection(detector);
+      }, 220);
+    };
+
+    const startFallbackScanner = async () => {
+      try {
+        setScannerMode("fallback");
         const cameras = await Html5Qrcode.getCameras();
-        if (isMounted && cameras && cameras.length > 0) {
+        if (!isMounted || !cameras?.length) {
+          throw new Error("Nenhuma camera disponivel neste dispositivo.");
+        }
+
+        const scanner = new Html5Qrcode(fallbackRegionId);
+        scannerRef.current = scanner;
+        const preferredCamera =
+          cameras.find((camera) => /back|rear|traseira|environment/i.test(camera.label)) ?? cameras[0];
+
+        await scanner.start(
+          preferredCamera.id,
+          {
+            fps: 12,
+            aspectRatio: 1,
+            qrbox: { width: 240, height: 240 },
+            formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+          } as any,
+          (decodedText) => {
+            if (isMounted && !isHandlingScanRef.current) {
+              void handleScanSuccess(decodedText.trim());
+            }
+          },
+          () => {}
+        );
+
+        if (isMounted) {
           setHasCameraPermission(true);
           setCameraError(null);
-          const html5QrCode = new Html5Qrcode(scanRegionId);
-          scannerRef.current = html5QrCode;
-          const preferredCamera =
-            cameras.find((camera) => /back|rear|traseira|environment/i.test(camera.label)) ?? cameras[0];
-
-          fallbackTimer = setTimeout(() => {
-            if (isMounted) {
-              setIsInitializing(false);
-            }
-          }, 1800);
-
-          await html5QrCode.start(
-            preferredCamera.id,
-            {
-              fps: 10,
-              aspectRatio: 1,
-              qrbox: { width: 240, height: 240 },
-              formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-            } as any,
-            (decodedText) => {
-              if (isMounted && !isHandlingScanRef.current) {
-                void handleScanSuccess(decodedText.trim());
-              }
-            },
-            () => {}
-          );
-          if (fallbackTimer) {
-            clearTimeout(fallbackTimer);
-          }
-          if (isMounted) {
-            setIsInitializing(false);
-          }
-        } else if (isMounted) {
-          setHasCameraPermission(false);
           setIsInitializing(false);
-          setCameraError("Nenhuma camera disponivel neste dispositivo.");
         }
       } catch {
         if (isMounted) {
           setHasCameraPermission(false);
-          setIsInitializing(false);
           setCameraError("Nao foi possivel iniciar a camera. Tente usar o codigo manual.");
+          setIsInitializing(false);
         }
       }
     };
 
-    startScanner();
+    const startScanner = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 1280 },
+          },
+        });
+
+        if (!isMounted) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        setHasCameraPermission(true);
+        setCameraError(null);
+        streamRef.current = stream;
+
+        const BarcodeDetectorCtor = (globalThis as any).BarcodeDetector;
+        if (BarcodeDetectorCtor && videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+          const detector = new BarcodeDetectorCtor({ formats: ["qr_code"] });
+          setScannerMode("native");
+          setIsInitializing(false);
+          void handleNativeDetection(detector);
+          return;
+        }
+
+        stopNativeStream();
+        await startFallbackScanner();
+      } catch {
+        if (isMounted) {
+          setHasCameraPermission(false);
+          setCameraError("Nao foi possivel iniciar a camera. Tente usar o codigo manual.");
+          setIsInitializing(false);
+        }
+      }
+    };
+
+    void startScanner();
 
     return () => {
       isMounted = false;
-      if (fallbackTimer) {
-        clearTimeout(fallbackTimer);
-      }
-      if (scannerRef.current) {
-        const scanner = scannerRef.current;
-        if (scanner.isScanning) {
-          scanner.stop().catch(() => {});
-        }
-        try {
-          scanner.clear();
-        } catch {}
-      }
+      stopNativeStream();
+      void stopFallbackScanner();
     };
-  }, []);
+  }, [fallbackRegionId]);
 
   const handleScanSuccess = async (decodedText: string) => {
+    if (!decodedText) return;
     isHandlingScanRef.current = true;
     setScanning(true);
     setIsInitializing(false);
+
     if (typeof navigator !== "undefined" && navigator.vibrate) {
       navigator.vibrate(100);
     }
+
     try {
       await onScan(decodedText);
     } finally {
@@ -164,7 +241,14 @@ export function QRScanner({
 
       <div className="relative mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-5xl flex-col items-center justify-center p-6 sm:p-8">
         <div className="relative aspect-square w-full max-w-[320px] overflow-hidden rounded-[2.5rem] border-2 border-white/10 bg-black shadow-2xl sm:rounded-[3rem]">
-          <div id={scanRegionId} className="h-full w-full" />
+          <video
+            ref={videoRef}
+            muted
+            playsInline
+            autoPlay
+            className={`absolute inset-0 h-full w-full object-cover ${scannerMode === "native" ? "opacity-100" : "opacity-0"}`}
+          />
+          <div id={fallbackRegionId} className={`h-full w-full ${scannerMode === "fallback" ? "opacity-100" : "opacity-0"}`} />
 
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <div className="h-[200px] w-[200px] animate-pulse rounded-3xl border-2 border-primary/40" style={{ borderColor: `${themeColor}66` }} />

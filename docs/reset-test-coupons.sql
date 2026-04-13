@@ -4,7 +4,7 @@
 DELETE FROM user_coupons uc
 USING users u, coupons_catalog c
 WHERE uc.user_id = u.id
-  AND uc.coupon_id = c.id
+  AND uc.coupon_id = c.id::text
   AND u.role = 'tourist'
   AND COALESCE(c.requires_profile, false) = false;
 
@@ -14,6 +14,6 @@ WHERE uc.user_id = u.id
 -- DELETE FROM user_coupons uc
 -- USING users u, coupons_catalog c
 -- WHERE uc.user_id = u.id
---   AND uc.coupon_id = c.id
+--   AND uc.coupon_id = c.id::text
 --   AND u.email = 'turista@exemplo.com'
 --   AND COALESCE(c.requires_profile, false) = true;

@@ -32,6 +32,12 @@ export interface UserProfile {
   discoverySourceOther?: string;
 }
 
+type LoginPortal = "tourist" | "merchant" | "admin";
+
+type LoginOptions = {
+  portal?: LoginPortal;
+};
+
 interface AuthContextType {
   user: any;
   profile: UserProfile | null;
@@ -41,7 +47,7 @@ interface AuthContextType {
   isAuthorized: (role: "admin" | "merchant") => boolean;
   saveProfile: (data: Partial<UserProfile>) => Promise<void>;
   updateUserStatus: (uid: string, data: Partial<UserProfile>) => Promise<void>;
-  login: (email: string, pass: string, onFinally?: () => void) => void;
+  login: (email: string, pass: string, onFinally?: () => void, options?: LoginOptions) => void;
   register: (input: any, onFinally?: () => void) => void;
   logout: () => Promise<void>;
 }
@@ -144,6 +150,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = async (input: any, onFinally?: () => void) => {
     const { email, pass, name, role, additional } = input;
+    const portalForRole: LoginPortal | undefined =
+      role === "turista" ? "tourist" : role === "logista" ? "merchant" : role === "prefeitura" ? "admin" : undefined;
     try {
       const data = await fetchJson<{ user: any; profile: UserProfile }>("/api/auth/register", {
         method: "POST",
@@ -166,7 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err: any) {
       if (err?.message?.includes("E-mail já existe") || err?.message?.includes("E-mail jÃ¡ existe")) {
         try {
-          await login(email, pass, onFinally);
+          await login(email, pass, onFinally, { portal: portalForRole });
           return;
         } catch {
           toast({
@@ -183,11 +191,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const login = async (email: string, pass: string, onFinally?: () => void) => {
+  const login = async (email: string, pass: string, onFinally?: () => void, options?: LoginOptions) => {
     try {
       const data = await fetchJson<{ user: any; profile: UserProfile }>("/api/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email, pass }),
+        body: JSON.stringify({ email, pass, portal: options?.portal }),
       });
 
       setUser(data.user);
@@ -211,7 +219,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const msg =
         err.message === "Credenciais inválidas." || err.message === "Credenciais invÃ¡lidas."
           ? "E-mail ou senha incorretos."
-          : "Erro ao acessar o portal.";
+          : err.message === "Este acesso Ã© exclusivo para turistas. Use o portal correto da sua conta." ||
+              err.message === "Este acesso ÃƒÂ© exclusivo para turistas. Use o portal correto da sua conta."
+            ? "Esta conta deve entrar pelo portal do turista."
+            : err.message === "Este acesso Ã© exclusivo para comerciantes. Use o portal comercial." ||
+                err.message === "Este acesso ÃƒÂ© exclusivo para comerciantes. Use o portal comercial."
+              ? "Esta conta deve entrar pelo portal do comerciante."
+              : err.message === "Este acesso Ã© exclusivo para prefeitura e administradores. Use o portal administrativo." ||
+                  err.message === "Este acesso ÃƒÂ© exclusivo para prefeitura e administradores. Use o portal administrativo."
+                ? "Esta conta deve entrar pelo portal administrativo."
+                : "Erro ao acessar o portal.";
       toast({ variant: "destructive", title: "Falha na Autenticacao", description: msg });
     } finally {
       onFinally?.();

@@ -43,7 +43,7 @@ export default function MerchantAuthPage() {
     e.preventDefault();
     setIsActionLoading(true);
     if (mode === 'login') {
-      login(email, password, () => setIsActionLoading(false));
+      login(email, password, () => setIsActionLoading(false), { portal: "merchant" });
     } else {
       register({ email, pass: password, name: businessName, role: 'logista', additional: { businessName } }, () => setIsActionLoading(false));
     }
@@ -104,7 +104,7 @@ export default function MerchantAuthPage() {
                 <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-white/5" /></div>
                 <div className="relative flex justify-center text-[9px] font-black uppercase"><span className="bg-[#16261e] px-4 text-white/20">Modo de Teste</span></div>
               </div>
-              <Button onClick={() => login("pousada@parceiro.com", "itarare2025", () => setIsActionLoading(false))} variant="outline" className="w-full border-primary/20 bg-primary/10 hover:bg-primary/20 rounded-2xl h-12 text-[10px] font-black uppercase text-primary">
+              <Button onClick={() => login("pousada@parceiro.com", "itarare2025", () => setIsActionLoading(false), { portal: "merchant" })} variant="outline" className="w-full border-primary/20 bg-primary/10 hover:bg-primary/20 rounded-2xl h-12 text-[10px] font-black uppercase text-primary">
                 <Zap className="w-3 h-3 mr-2 fill-primary" /> Acesso Rápido Demo
               </Button>
             </TabsContent>

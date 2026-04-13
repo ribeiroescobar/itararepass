@@ -43,7 +43,7 @@ export async function POST(req: Request) {
             e.owner_user_id as "ownerUserId",
             u.name as "touristName"
          FROM user_coupons uc
-         JOIN coupons_catalog c ON c.id = uc.coupon_id
+         JOIN coupons_catalog c ON c.id::text = uc.coupon_id
          JOIN establishments e ON e.id = c.establishment_id
          JOIN users u ON u.id = uc.user_id
          WHERE uc.id = $1 AND c.is_active = true AND e.is_active = true`,
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
             e.owner_user_id as "ownerUserId",
             u.name as "touristName"
          FROM user_coupons uc
-         JOIN coupons_catalog c ON c.id = uc.coupon_id
+         JOIN coupons_catalog c ON c.id::text = uc.coupon_id
          JOIN establishments e ON e.id = c.establishment_id
          JOIN users u ON u.id = uc.user_id
          WHERE uc.user_id = $1 AND uc.coupon_id = $2 AND c.is_active = true AND e.is_active = true`,
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Cupom não encontrado para este turista." }, { status: 404 });
   }
 
-  if (row.establishmentId !== payload.establishmentId) {
+  if (payload.establishmentId && row.establishmentId !== payload.establishmentId) {
     return NextResponse.json({ error: "QR incompatível com o estabelecimento do benefício." }, { status: 400 });
   }
 

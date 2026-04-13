@@ -21,30 +21,28 @@ const schema = z.object({
 export async function PATCH(req: Request, context: { params: Promise<{ id: string }> }) {
   const auth = await requireMerchant();
   if (!auth.ok) {
-    return NextResponse.json({ error: "Sem permissão." }, { status: auth.reason === "forbidden" ? 403 : 401 });
+    return NextResponse.json({ error: "Sem permissao." }, { status: auth.reason === "forbidden" ? 403 : 401 });
   }
 
   const { id } = await context.params;
   const body = await req.json().catch(() => null);
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Dados inválidos." }, { status: 400 });
+    return NextResponse.json({ error: "Dados invalidos." }, { status: 400 });
   }
 
-  const ownershipCheck = await dbQuery(
-    "SELECT owner_user_id FROM establishments WHERE id = $1",
-    [id]
-  );
+  const ownershipCheck = await dbQuery("SELECT owner_user_id FROM establishments WHERE id = $1", [id]);
   const ownerId = ownershipCheck.rows[0]?.owner_user_id;
   if (!ownerId) {
-    return NextResponse.json({ error: "Estabelecimento não encontrado." }, { status: 404 });
+    return NextResponse.json({ error: "Estabelecimento nao encontrado." }, { status: 404 });
   }
   if (!auth.isMaster && ownerId !== auth.user.id) {
-    return NextResponse.json({ error: "Sem permissão." }, { status: 403 });
+    return NextResponse.json({ error: "Sem permissao." }, { status: 403 });
   }
 
   const data = parsed.data;
   const premiumEnabled = auth.isMaster ? data.premiumEnabled : null;
+
   await dbQuery(
     `UPDATE establishments SET
       name = COALESCE($1, name),
@@ -78,22 +76,24 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 export async function DELETE(_: Request, context: { params: Promise<{ id: string }> }) {
   const auth = await requireMerchant();
   if (!auth.ok) {
-    return NextResponse.json({ error: "Sem permissão." }, { status: auth.reason === "forbidden" ? 403 : 401 });
+    return NextResponse.json({ error: "Sem permissao." }, { status: auth.reason === "forbidden" ? 403 : 401 });
   }
 
   const { id } = await context.params;
-  const ownershipCheck = await dbQuery(
-    "SELECT owner_user_id FROM establishments WHERE id = $1",
-    [id]
-  );
+  const ownershipCheck = await dbQuery("SELECT owner_user_id, is_active FROM establishments WHERE id = $1", [id]);
   const ownerId = ownershipCheck.rows[0]?.owner_user_id;
+  const isActive = ownershipCheck.rows[0]?.is_active;
+
   if (!ownerId) {
-    return NextResponse.json({ error: "Estabelecimento não encontrado." }, { status: 404 });
+    return NextResponse.json({ error: "Estabelecimento nao encontrado." }, { status: 404 });
   }
   if (!auth.isMaster && ownerId !== auth.user.id) {
-    return NextResponse.json({ error: "Sem permissão." }, { status: 403 });
+    return NextResponse.json({ error: "Sem permissao." }, { status: 403 });
+  }
+  if (isActive !== false) {
+    return NextResponse.json({ error: "Desative o estabelecimento antes de excluir permanentemente." }, { status: 409 });
   }
 
-  await dbQuery("UPDATE establishments SET is_active = false, updated_at = now() WHERE id = $1", [id]);
+  await dbQuery("DELETE FROM establishments WHERE id = $1", [id]);
   return NextResponse.json({ ok: true });
 }

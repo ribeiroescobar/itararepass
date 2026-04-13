@@ -166,7 +166,7 @@ export default function CouponsPage() {
               <div className="space-y-5 px-6 py-6">
                 <div className="rounded-[1.75rem] border border-primary/20 bg-black/30 p-5 text-center">
                   <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=420x420&qzone=2&data=${encodeURIComponent(activeQr.token)}`}
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=520x520&qzone=4&data=${encodeURIComponent(activeQr.token)}`}
                     alt={language === "en" ? "Reward QR code" : "QR do beneficio"}
                     className="mx-auto h-[min(78vw,320px)] w-[min(78vw,320px)] rounded-2xl bg-white p-3 shadow-xl"
                   />
@@ -209,7 +209,7 @@ export default function CouponsPage() {
         </DialogContent>
       </Dialog>
 
-      <BottomNav />
+      {!activeQr && <BottomNav />}
       <Toaster />
     </div>
   );

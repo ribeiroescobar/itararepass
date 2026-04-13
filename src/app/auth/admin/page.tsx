@@ -42,7 +42,7 @@ export default function AdminAuthPage() {
     e.preventDefault();
     setIsActionLoading(true);
     if (mode === "login") {
-      login(email, password, () => setIsActionLoading(false));
+      login(email, password, () => setIsActionLoading(false), { portal: "admin" });
     } else {
       register({ email, pass: password, name, role: "prefeitura", additional: {} }, () => setIsActionLoading(false));
     }
@@ -115,7 +115,7 @@ export default function AdminAuthPage() {
                 <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-white/5" /></div>
                 <div className="relative flex justify-center text-[9px] font-black uppercase"><span className="bg-[#16261e] px-4 text-white/20">{demoLabel}</span></div>
               </div>
-              <Button onClick={() => login("gestor@itarare.gov.br", "itarare2025", () => setIsActionLoading(false))} variant="outline" className="w-full border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 rounded-2xl h-12 text-[10px] font-black uppercase text-blue-400">
+              <Button onClick={() => login("gestor@itarare.gov.br", "itarare2025", () => setIsActionLoading(false), { portal: "admin" })} variant="outline" className="w-full border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 rounded-2xl h-12 text-[10px] font-black uppercase text-blue-400">
                 <Zap className="w-3 h-3 mr-2 fill-blue-400" /> {quickAccessLabel}
               </Button>
             </TabsContent>

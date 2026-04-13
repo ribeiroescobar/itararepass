@@ -123,7 +123,7 @@ export default function TouristAuthPage() {
     setIsActionLoading(true);
 
     if (mode === "login") {
-      login(email, password, () => setIsActionLoading(false));
+      login(email, password, () => setIsActionLoading(false), { portal: "tourist" });
       return;
     }
 
