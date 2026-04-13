@@ -137,7 +137,7 @@ export default function TouristAuthPage() {
                 <div>
                   <p className="text-[10px] font-black text-white uppercase italic">{t('win_gift')}</p>
                   <p className="text-[9px] text-white/50 font-medium uppercase tracking-tight leading-tight mt-0.5">
-                    Complete os dados abaixo e ganhe o Voucher da Casa do Artesão imediatamente!
+                    {t('tourist_signup_gift_note')}
                   </p>
                 </div>
               </div>

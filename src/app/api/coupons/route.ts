@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { getSessionFromCookies } from "@/lib/session";
 import { dbQuery } from "@/lib/db";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  const session = getSessionFromCookies();
+  const session = await getSessionFromCookies();
   if (!session) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
@@ -18,3 +18,4 @@ export async function GET() {
 
   return NextResponse.json({ coupons: result.rows });
 }
+

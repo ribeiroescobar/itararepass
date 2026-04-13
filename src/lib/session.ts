@@ -10,8 +10,9 @@ export function getSessionCookieName() {
 }
 
 // Reads and verifies the session cookie. Returns null when missing/invalid.
-export function getSessionFromCookies(): SessionPayload | null {
-  const token = cookies().get(SESSION_COOKIE)?.value;
+export async function getSessionFromCookies(): Promise<SessionPayload | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
   try {
     return verifySession(token);

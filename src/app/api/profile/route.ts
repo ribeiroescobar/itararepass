@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { getSessionFromCookies } from "@/lib/session";
 import { dbQuery } from "@/lib/db";
 import { mapUserProfile, type DbUser } from "@/lib/user-mappers";
@@ -21,7 +21,7 @@ const schema = z.object({
 });
 
 export async function PATCH(req: Request) {
-  const session = getSessionFromCookies();
+  const session = await getSessionFromCookies();
   if (!session) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
@@ -73,3 +73,4 @@ export async function PATCH(req: Request) {
 
   return NextResponse.json({ profile: mapUserProfile(user) });
 }
+

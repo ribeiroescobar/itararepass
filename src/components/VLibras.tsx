@@ -4,16 +4,26 @@
 import React from "react";
 import Script from "next/script";
 
+type VwDivProps = React.HTMLAttributes<HTMLDivElement> & {
+  vw?: string;
+  "vw-access-button"?: string;
+  "vw-plugin-wrapper"?: string;
+};
+
 /**
  * Componente VLibras otimizado para Next.js 15.
  * Utiliza o componente Script do Next para garantir carregamento e inicialização corretos.
  */
 export function VLibras() {
+  const rootProps: VwDivProps = { vw: "true", className: "enabled" };
+  const accessButtonProps: VwDivProps = { "vw-access-button": "true", className: "active" };
+  const wrapperProps: VwDivProps = { "vw-plugin-wrapper": "true" };
+
   return (
     <>
-      <div vw="true" className="enabled">
-        <div vw-access-button="true" className="active"></div>
-        <div vw-plugin-wrapper="true">
+      <div {...rootProps}>
+        <div {...accessButtonProps}></div>
+        <div {...wrapperProps}>
           <div className="vw-plugin-top-wrapper"></div>
         </div>
       </div>

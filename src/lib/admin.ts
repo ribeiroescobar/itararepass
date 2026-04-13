@@ -13,7 +13,7 @@ type SessionUser = {
 
 // Loads the user tied to the session cookie.
 async function getSessionUser() {
-  const session = getSessionFromCookies();
+  const session = await getSessionFromCookies();
   if (!session) return { ok: false as const, reason: "unauthorized" };
 
   const userRes = await dbQuery<SessionUser>(

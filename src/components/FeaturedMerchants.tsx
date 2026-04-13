@@ -66,7 +66,7 @@ export function FeaturedMerchants({ merchants }: FeaturedMerchantsProps) {
                     {[1,2,3,4,5].map(i => (
                       <Star key={i} className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
                     ))}
-                    <span className="text-[10px] text-white/60 font-bold ml-2 uppercase">Parceiro Oficial</span>
+                    <span className="text-[10px] text-white/60 font-bold ml-2 uppercase">{t('official_partner')}</span>
                   </div>
                 </div>
 
@@ -96,8 +96,8 @@ export function FeaturedMerchants({ merchants }: FeaturedMerchantsProps) {
               <Sparkles className="w-6 h-6 text-white/20" />
            </div>
            <div>
-             <p className="text-[10px] font-black text-white/40 uppercase leading-tight">Sua empresa aqui?</p>
-             <p className="text-[8px] text-white/20 font-bold uppercase mt-1">Destaque VIP no app</p>
+             <p className="text-[10px] font-black text-white/40 uppercase leading-tight">{t('featured_placeholder_title')}</p>
+             <p className="text-[8px] text-white/20 font-bold uppercase mt-1">{t('featured_placeholder_subtitle')}</p>
            </div>
            <ChevronRight className="w-4 h-4 text-white/10" />
         </div>
@@ -153,7 +153,7 @@ export function FeaturedMerchants({ merchants }: FeaturedMerchantsProps) {
             </AlertDialogHeader>
             <AlertDialogFooter className="pt-8">
               <AlertDialogAction className="bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest text-[10px] h-12 rounded-2xl w-full">
-                Entendi, vamos explorar!
+                {t('unlock_guide_cta')}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

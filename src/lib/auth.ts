@@ -2,11 +2,13 @@ import "server-only";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-// Shared secret used to sign/verify session JWTs. Must be set in production.
-const JWT_SECRET = process.env.JWT_SECRET;
-
-if (!JWT_SECRET) {
-  throw new Error("JWT_SECRET is not set");
+// Reads the session secret lazily so builds can succeed before runtime env is injected.
+function getJwtSecret() {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error("JWT_SECRET is not set");
+  }
+  return secret;
 }
 
 // Minimum data required to rehydrate a session from the cookie.
@@ -28,10 +30,10 @@ export async function verifyPassword(password: string, hash: string) {
 
 // Issue a signed JWT for the session cookie.
 export function signSession(payload: SessionPayload) {
-  return jwt.sign(payload, JWT_SECRET as string, { expiresIn: "7d" });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: "7d" });
 }
 
 // Decode and verify the session token.
 export function verifySession(token: string) {
-  return jwt.verify(token, JWT_SECRET as string) as SessionPayload;
+  return jwt.verify(token, getJwtSecret()) as SessionPayload;
 }

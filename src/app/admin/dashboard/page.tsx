@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
@@ -144,7 +144,7 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     if (!isUserLoading && !canAccessData && user) {
-      toast({ variant: "destructive", title: "Acesso Negado", description: "Somente o Douglas pode acessar esta área." });
+      toast({ variant: "destructive", title: "Acesso Negado", description: "Sua conta nao possui permissao para esta area." });
       router.replace("/explore");
     }
   }, [isUserLoading, canAccessData, router, user]);
@@ -177,11 +177,7 @@ export default function AdminDashboardPage() {
     const spotCounts: Record<string, number> = {};
 
     allUsers.forEach((u) => {
-      const isMasterUser = [
-        "douglasescobarribeiro@gmail.com",
-        "douglas@itarare.gov.br",
-        "gestor@itarare.gov.br",
-      ].includes(u.email?.toLowerCase());
+      const isMasterUser = u.tipo_usuario === "admin_master";
 
       if (isMasterUser) return;
 
@@ -250,6 +246,19 @@ export default function AdminDashboardPage() {
   }, [allUsers, allCheckins, t, spots, allSpots, allEstablishments]);
 
   const COLORS = ["#f97316", "#3b82f6", "#10b981", "#a855f7", "#ec4899", "#eab308"];
+  const chartTooltipStyle = {
+    backgroundColor: "#0d1a14",
+    borderRadius: "1rem",
+    border: "1px solid rgba(255,255,255,0.1)",
+  };
+
+  const formatPercent = useCallback((value: number, total: number) => {
+    if (!total) return "0.0%";
+    return `${((value / total) * 100).toFixed(1)}%`;
+  }, []);
+
+  const interestsTotal = useMemo(() => stats.interests.reduce((sum, item) => sum + item.count, 0), [stats.interests]);
+  const citiesTotal = useMemo(() => stats.cities.reduce((sum, item) => sum + item.value, 0), [stats.cities]);
 
   const handleCreateSpot = async () => {
     if ((!editSpotId && !spotId.trim()) || !spotName.trim() || !spotLat || !spotLng) return;
@@ -379,7 +388,7 @@ export default function AdminDashboardPage() {
       <div className="min-h-screen bg-[#0d1a14] flex flex-col items-center justify-center">
         <Loader2 className="w-12 h-12 text-primary animate-spin" />
         <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mt-6 text-center">
-          Iniciando Painel Douglas...
+          Iniciando Painel de Gestao...
         </p>
       </div>
     );
@@ -402,6 +411,17 @@ export default function AdminDashboardPage() {
             </div>
           </div>
           <div className="flex gap-2">
+            {isAdminMaster && (
+              <Link href="/merchant/dashboard">
+                <Button
+                  variant="ghost"
+                  className="bg-blue-500/10 border border-blue-500/20 rounded-xl h-12 px-4 gap-2 hover:bg-blue-500/20"
+                >
+                  <Store className="w-4 h-4 text-blue-300" />
+                  <span className="text-[9px] font-black uppercase tracking-widest hidden sm:inline text-blue-300">Gerenciar Cupons</span>
+                </Button>
+              </Link>
+            )}
             <Button
               variant="ghost"
               onClick={refreshData}
@@ -518,7 +538,7 @@ export default function AdminDashboardPage() {
                     <BarChart data={stats.popularity} layout="vertical">
                       <XAxis type="number" hide />
                       <YAxis dataKey="name" type="category" stroke="rgba(255,255,255,0.4)" fontSize={9} width={110} tickLine={false} axisLine={false} />
-                      <Tooltip contentStyle={{ backgroundColor: "#0d1a14", borderRadius: "1rem", border: "1px solid rgba(255,255,255,0.1)" }} />
+                      <Tooltip contentStyle={chartTooltipStyle} formatter={(value: number) => [`${value} (${formatPercent(value, stats.totalCheckins)})`, "Check-ins"]} />
                       <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={14} fill="#f97316" />
                     </BarChart>
                   </ResponsiveContainer>
@@ -542,7 +562,7 @@ export default function AdminDashboardPage() {
                           <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="none" />
                         ))}
                       </Pie>
-                      <Tooltip />
+                      <Tooltip contentStyle={chartTooltipStyle} formatter={(value: number) => [`${value} (${formatPercent(value, citiesTotal || 1)})`, "Participacao"]} />
                       <Legend verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: "9px" }} />
                     </PieChart>
                   </ResponsiveContainer>
@@ -556,6 +576,7 @@ export default function AdminDashboardPage() {
                       <BarChart data={stats.interests}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                         <XAxis dataKey="name" stroke="rgba(255,255,255,0.3)" fontSize={8} />
+                        <Tooltip contentStyle={chartTooltipStyle} formatter={(value: number) => [`${value} (${formatPercent(value, interestsTotal || 1)})`, "Cadastros"]} />
                         <Bar dataKey="count" fill="#3b82f6" radius={[6, 6, 0, 0]} barSize={35} />
                       </BarChart>
                     </ResponsiveContainer>
@@ -922,3 +943,12 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+

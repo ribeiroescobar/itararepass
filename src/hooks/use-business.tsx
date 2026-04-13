@@ -23,6 +23,7 @@ export interface TouristSpot {
 
 export interface Coupon {
   id: string;
+  title?: string;
   businessName: string;
   address: string;
   discount: string;
@@ -37,6 +38,7 @@ export interface Coupon {
   isPremium?: boolean;
   lat?: number;
   lng?: number;
+  translationKey?: string;
 }
 
 interface BusinessContextType {
@@ -68,6 +70,32 @@ type ApiSpot = {
 };
 
 type ApiCoupon = Coupon;
+
+function normalizeText(value?: string | null) {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function resolveCouponTranslationKey(coupon: Partial<ApiCoupon>) {
+  if (coupon.id?.startsWith("c_")) return coupon.id;
+
+  const businessName = normalizeText(coupon.businessName);
+  const title = normalizeText(coupon.title);
+  const discount = normalizeText(coupon.discount);
+  const haystack = `${businessName} ${title} ${discount}`;
+
+  if (haystack.includes("casa do artesao") || haystack.includes("artisan house")) return "c_artesao";
+  if (haystack.includes("cafe dona bela") || haystack.includes("dona bela cafe")) return "c_dona_bela";
+  if (haystack.includes("padaria abati") || haystack.includes("abati bakery")) return "c_abati";
+  if (haystack.includes("hotel itarare") || haystack.includes("itarare hotel")) return "c_hotel";
+  if (haystack.includes("gourmeteria")) return "c_gourmeteria";
+
+  return undefined;
+}
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
@@ -186,11 +214,12 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
   }, [fetchBaseData]);
 
   const spots = useMemo(() => {
-    const sourceSpots = uniqueById(baseSpots.length > 0 ? baseSpots : INITIAL_SPOTS);
+    const sourceSpots = uniqueById<ApiSpot>((baseSpots.length > 0 ? baseSpots : INITIAL_SPOTS) as ApiSpot[]);
     return sourceSpots.map((spot) => {
       const visit = userCheckins?.find((c) => c.spotId === spot.id);
       return {
         ...spot,
+        image: spot.image || "",
         name: translateOrFallback(`${spot.id}_name`, spot.name),
         visited: !!visit,
         historicalSnippet: visit?.insight || translateOrFallback(`${spot.id}_snippet`, spot.historicalSnippet),
@@ -205,9 +234,10 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
     const lodgingVisited = spots.some((s) => s.type === "lodging" && s.visited);
     const profileCompleted = !!profile?.completed;
 
-    const sourceCoupons = uniqueById(baseCoupons.length > 0 ? baseCoupons : INITIAL_COUPONS);
+    const sourceCoupons = uniqueById<ApiCoupon>((baseCoupons.length > 0 ? baseCoupons : INITIAL_COUPONS) as ApiCoupon[]);
     return sourceCoupons.map((coupon) => {
       const isUsed = userCoupons?.some((uc) => uc.id === coupon.id && uc.used);
+      const translationKey = resolveCouponTranslationKey(coupon);
 
       let unlocked = true;
       let reqLabel = "";
@@ -224,21 +254,24 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
       } else if (coupon.minAdventureSpots) {
         unlocked = adventureVisitedCount >= coupon.minAdventureSpots;
         reqLabel = t(`rule_${coupon.minAdventureSpots}_adventure`);
+        const missingVisits = coupon.minAdventureSpots - adventureVisitedCount;
         statusLabel = unlocked
           ? t("mission_unlocked")
-          : t("missing_points").replace("{count}", (coupon.minAdventureSpots - adventureVisitedCount).toString());
+          : t(missingVisits > 1 ? "missing_points_plural" : "missing_points").replace("{count}", missingVisits.toString());
       }
 
       return {
         ...coupon,
-        businessName: translateOrFallback(`${coupon.id}_name`, coupon.businessName),
-        address: translateOrFallback(`${coupon.id}_addr`, coupon.address),
-        discount: translateOrFallback(`${coupon.id}_discount`, coupon.discount),
+        title: translationKey ? translateOrFallback(`${translationKey}_title`, coupon.title) : coupon.title,
+        businessName: translationKey ? translateOrFallback(`${translationKey}_name`, coupon.businessName) : coupon.businessName,
+        address: translationKey ? translateOrFallback(`${translationKey}_addr`, coupon.address) : coupon.address,
+        discount: translationKey ? translateOrFallback(`${translationKey}_discount`, coupon.discount) : coupon.discount,
         image: coupon.image || (coupon as any).businessImage || coupon.image,
         used: !!isUsed,
         locked: !unlocked,
         requirementLabel: reqLabel,
         statusLabel: statusLabel,
+        translationKey,
       };
     });
   }, [spots, userCoupons, profile?.completed, language, t, baseCoupons, translateOrFallback, uniqueById]);
@@ -282,7 +315,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
 
   const addComment = async (spotId: string, text: string, photo?: string, rating?: number) => {
     if (!user) return;
-    const sourceSpots = baseSpots.length > 0 ? baseSpots : INITIAL_SPOTS;
+    const sourceSpots = (baseSpots.length > 0 ? baseSpots : INITIAL_SPOTS) as ApiSpot[];
     const spot = sourceSpots.find((s) => s.id === spotId);
     await fetchJson("/api/comments", {
       method: "POST",

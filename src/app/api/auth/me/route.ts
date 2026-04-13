@@ -6,7 +6,7 @@ import { mapUserProfile, type DbUser } from "@/lib/user-mappers";
 export const runtime = "nodejs";
 
 export async function GET() {
-  const session = getSessionFromCookies();
+  const session = await getSessionFromCookies();
   if (!session) {
     return NextResponse.json({ user: null, profile: null }, { status: 401 });
   }

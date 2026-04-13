@@ -18,6 +18,35 @@ const schema = z.object({
   image: safeUrlOptional,
 });
 
+export async function GET() {
+  const auth = await requireMerchant();
+  if (!auth.ok) {
+    return NextResponse.json({ error: "Sem permissao." }, { status: auth.reason === "forbidden" ? 403 : 401 });
+  }
+
+  const query = auth.isMaster
+    ? `SELECT c.id, c.establishment_id as "establishmentId", c.title, c.discount,
+        c.requirement_label as "requirementLabel", c.requires_profile as "requiresProfile",
+        c.requires_lodging as "requiresLodging", c.min_adventure_spots as "minAdventureSpots",
+        c.is_premium as "isPremium", c.image_url as "image", c.is_active as "isActive",
+        e.name as "establishmentName", e.owner_user_id as "ownerUserId"
+       FROM coupons_catalog c
+       JOIN establishments e ON e.id = c.establishment_id
+       ORDER BY c.created_at DESC`
+    : `SELECT c.id, c.establishment_id as "establishmentId", c.title, c.discount,
+        c.requirement_label as "requirementLabel", c.requires_profile as "requiresProfile",
+        c.requires_lodging as "requiresLodging", c.min_adventure_spots as "minAdventureSpots",
+        c.is_premium as "isPremium", c.image_url as "image", c.is_active as "isActive",
+        e.name as "establishmentName", e.owner_user_id as "ownerUserId"
+       FROM coupons_catalog c
+       JOIN establishments e ON e.id = c.establishment_id
+       WHERE e.owner_user_id = $1
+       ORDER BY c.created_at DESC`;
+
+  const result = auth.isMaster ? await dbQuery(query) : await dbQuery(query, [auth.user.id]);
+  return NextResponse.json({ coupons: result.rows });
+}
+
 export async function POST(req: Request) {
   const auth = await requireMerchant();
   if (!auth.ok) {

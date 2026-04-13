@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { getSessionFromCookies } from "@/lib/session";
 import { dbQuery } from "@/lib/db";
 import { z } from "zod";
@@ -32,7 +32,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const session = getSessionFromCookies();
+  const session = await getSessionFromCookies();
   if (!session) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
@@ -66,3 +66,4 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ comment: result.rows[0] });
 }
+
