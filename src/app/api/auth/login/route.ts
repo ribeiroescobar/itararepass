@@ -6,11 +6,13 @@ import { z } from "zod";
 
 export const runtime = "nodejs";
 
+// Validates login payload.
 const schema = z.object({
   email: z.string().email(),
   pass: z.string().min(1),
 });
 
+// Exchanges credentials for a session cookie.
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const parsed = schema.safeParse(body);
@@ -21,6 +23,7 @@ export async function POST(req: Request) {
   const { email, pass } = parsed.data;
   const emailLower = email.toLowerCase();
 
+  // Load user + password hash for verification.
   const result = await dbQuery<DbUser & { password_hash: string }>(
     `SELECT id, email, password_hash, name, whatsapp, origin_city, age_group, cnpj, business_name, position,
       tipo_usuario, role, approved, created_at, completed, interest, discovery_source, discovery_source_other
@@ -45,6 +48,7 @@ export async function POST(req: Request) {
     profile: mapUserProfile(user),
   });
 
+  // HTTP-only session cookie used by server routes.
   response.cookies.set({
     name: "itarare_session",
     value: token,

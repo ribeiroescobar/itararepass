@@ -1,18 +1,19 @@
 import { NextResponse } from "next/server";
 import { dbQuery } from "@/lib/db";
 import { requireMerchant } from "@/lib/admin";
+import { safeUrlNullable } from "@/lib/validation";
 import { z } from "zod";
 
 export const runtime = "nodejs";
 
 const schema = z.object({
-  name: z.string().optional(),
-  description: z.string().optional().nullable(),
-  address: z.string().optional().nullable(),
-  imageUrl: z.string().optional().nullable(),
-  category: z.string().optional().nullable(),
-  lat: z.number().optional().nullable(),
-  lng: z.number().optional().nullable(),
+  name: z.string().max(120).optional(),
+  description: z.string().max(1000).optional().nullable(),
+  address: z.string().max(200).optional().nullable(),
+  imageUrl: safeUrlNullable,
+  category: z.string().max(80).optional().nullable(),
+  lat: z.number().min(-90).max(90).optional().nullable(),
+  lng: z.number().min(-180).max(180).optional().nullable(),
   isActive: z.boolean().optional(),
   premiumEnabled: z.boolean().optional(),
 });

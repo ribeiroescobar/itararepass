@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: "Itarare Pass",
   webDir: "out",
   server: {
-    url: process.env.NEXT_PUBLIC_APP_URL || "https://SEU_DOMINIO_AQUI",
+    url: "https://75.119.133.198.nip.io",
     cleartext: false,
   },
 };

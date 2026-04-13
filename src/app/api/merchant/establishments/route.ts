@@ -1,18 +1,19 @@
 import { NextResponse } from "next/server";
 import { dbQuery } from "@/lib/db";
 import { requireMerchant } from "@/lib/admin";
+import { safeUrlOptional } from "@/lib/validation";
 import { z } from "zod";
 
 export const runtime = "nodejs";
 
 const schema = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(),
-  address: z.string().optional(),
-  imageUrl: z.string().optional(),
-  category: z.string().optional(),
-  lat: z.number().optional(),
-  lng: z.number().optional(),
+  name: z.string().min(1).max(120),
+  description: z.string().max(1000).optional(),
+  address: z.string().max(200).optional(),
+  imageUrl: safeUrlOptional,
+  category: z.string().max(80).optional(),
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
   ownerUserId: z.string().optional(),
   premiumEnabled: z.boolean().optional(),
 });

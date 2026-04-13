@@ -1,20 +1,21 @@
 import { NextResponse } from "next/server";
 import { dbQuery } from "@/lib/db";
 import { requireMerchant } from "@/lib/admin";
+import { safeUrlOptional } from "@/lib/validation";
 import { z } from "zod";
 
 export const runtime = "nodejs";
 
 const schema = z.object({
   establishmentId: z.string().min(1),
-  title: z.string().min(1),
-  discount: z.string().min(1),
-  requirementLabel: z.string().optional(),
+  title: z.string().min(1).max(120),
+  discount: z.string().min(1).max(60),
+  requirementLabel: z.string().max(120).optional(),
   requiresProfile: z.boolean().optional(),
   requiresLodging: z.boolean().optional(),
-  minAdventureSpots: z.number().int().optional(),
+  minAdventureSpots: z.number().int().min(0).optional(),
   isPremium: z.boolean().optional(),
-  image: z.string().optional(),
+  image: safeUrlOptional,
 });
 
 export async function POST(req: Request) {

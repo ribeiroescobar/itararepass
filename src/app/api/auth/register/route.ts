@@ -6,6 +6,7 @@ import { z } from "zod";
 
 export const runtime = "nodejs";
 
+// Validates registration payload.
 const schema = z.object({
   email: z.string().email(),
   pass: z.string().min(6),
@@ -14,6 +15,7 @@ const schema = z.object({
   additional: z.record(z.any()).optional(),
 });
 
+// Maps UI role selection into DB role + approval state.
 function resolveRole(inputRole: string, email: string) {
   const emailLower = email.toLowerCase();
   if (inputRole === "turista" || inputRole === "tourist") {
@@ -29,6 +31,7 @@ function resolveRole(inputRole: string, email: string) {
   return { tipoUsuario: "turista", role: "tourist", approved: true, isMaster: false };
 }
 
+// Creates a user and starts a session immediately.
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const parsed = schema.safeParse(body);
@@ -85,6 +88,7 @@ export async function POST(req: Request) {
     profile: mapUserProfile(user),
   });
 
+  // HTTP-only session cookie used by server routes.
   response.cookies.set({
     name: "itarare_session",
     value: token,

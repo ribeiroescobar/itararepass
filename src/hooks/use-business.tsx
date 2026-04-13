@@ -100,6 +100,27 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
     [language]
   );
 
+  // Prefer translation keys when available, fallback to database/seed values.
+  const translateOrFallback = useCallback(
+    (key: string, fallback: string | undefined) => {
+      const translated = t(key);
+      return translated !== key ? translated : (fallback ?? key);
+    },
+    [t]
+  );
+
+  // Defensive dedupe to avoid repeated items from DB or seed.
+  const uniqueById = useCallback(<T extends { id: string }>(items: T[]) => {
+    const seen = new Set<string>();
+    const result: T[] = [];
+    for (const item of items) {
+      if (!item?.id || seen.has(item.id)) continue;
+      seen.add(item.id);
+      result.push(item);
+    }
+    return result;
+  }, []);
+
   useEffect(() => {
     let active = true;
     if (!user) {
@@ -165,26 +186,26 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
   }, [fetchBaseData]);
 
   const spots = useMemo(() => {
-    const sourceSpots = baseSpots.length > 0 ? baseSpots : INITIAL_SPOTS;
+    const sourceSpots = uniqueById(baseSpots.length > 0 ? baseSpots : INITIAL_SPOTS);
     return sourceSpots.map((spot) => {
       const visit = userCheckins?.find((c) => c.spotId === spot.id);
       return {
         ...spot,
-        name: spot.name || t(`${spot.id}_name`),
+        name: translateOrFallback(`${spot.id}_name`, spot.name),
         visited: !!visit,
-        historicalSnippet: visit?.insight || spot.historicalSnippet || t(`${spot.id}_snippet`),
+        historicalSnippet: visit?.insight || translateOrFallback(`${spot.id}_snippet`, spot.historicalSnippet),
         insightLanguage: visit?.language || "pt",
         userRating: visit?.rating || 0,
       };
     });
-  }, [userCheckins, language, t, baseSpots]);
+  }, [userCheckins, language, t, baseSpots, translateOrFallback, uniqueById]);
 
   const coupons = useMemo(() => {
     const adventureVisitedCount = spots.filter((s) => s.type === "adventure" && s.visited).length;
     const lodgingVisited = spots.some((s) => s.type === "lodging" && s.visited);
     const profileCompleted = !!profile?.completed;
 
-    const sourceCoupons = baseCoupons.length > 0 ? baseCoupons : INITIAL_COUPONS;
+    const sourceCoupons = uniqueById(baseCoupons.length > 0 ? baseCoupons : INITIAL_COUPONS);
     return sourceCoupons.map((coupon) => {
       const isUsed = userCoupons?.some((uc) => uc.id === coupon.id && uc.used);
 
@@ -210,9 +231,9 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
 
       return {
         ...coupon,
-        businessName: coupon.businessName || t(`${coupon.id}_name`),
-        address: coupon.address || t(`${coupon.id}_addr`),
-        discount: coupon.discount || t(`${coupon.id}_discount`),
+        businessName: translateOrFallback(`${coupon.id}_name`, coupon.businessName),
+        address: translateOrFallback(`${coupon.id}_addr`, coupon.address),
+        discount: translateOrFallback(`${coupon.id}_discount`, coupon.discount),
         image: coupon.image || (coupon as any).businessImage || coupon.image,
         used: !!isUsed,
         locked: !unlocked,
@@ -220,7 +241,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
         statusLabel: statusLabel,
       };
     });
-  }, [spots, userCoupons, profile?.completed, language, t, baseCoupons]);
+  }, [spots, userCoupons, profile?.completed, language, t, baseCoupons, translateOrFallback, uniqueById]);
 
   const checkIn = async (spotId: string, insight?: string, lang?: string) => {
     if (!user) return;

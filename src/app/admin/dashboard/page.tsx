@@ -48,6 +48,7 @@ import {
 } from "recharts";
 import { toast } from "@/hooks/use-toast";
 
+// Simple fetch helper with JSON parsing + error propagation.
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
   const data = await res.json().catch(() => null);
@@ -95,6 +96,7 @@ export default function AdminDashboardPage() {
     return isAdminMaster || (profile?.role === "admin" && profile?.approved);
   }, [isAdminMaster, profile]);
 
+  // Loads all admin datasets in parallel to keep the dashboard responsive.
   const refreshData = useCallback(async () => {
     if (!canAccessData) return;
     setIsRefreshing(true);
@@ -147,6 +149,7 @@ export default function AdminDashboardPage() {
     }
   }, [isUserLoading, canAccessData, router, user]);
 
+  // Aggregates metrics and charts from raw API data.
   const stats = useMemo(() => {
     const data = {
       cities: [] as any[],
@@ -158,6 +161,13 @@ export default function AdminDashboardPage() {
       issImpact: 0,
       totalCheckins: allCheckins?.length || 0,
       touristList: [] as any[],
+      totalPartners: 0,
+      approvedPartners: 0,
+      approvalRate: 0,
+      profileCompletionRate: 0,
+      avgCheckinsPerTourist: 0,
+      activeSpotsRate: 0,
+      premiumEstRate: 0,
     };
 
     if (!allUsers) return data;
@@ -178,6 +188,10 @@ export default function AdminDashboardPage() {
       const isMerchant = u.role === "merchant" || u.tipo_usuario?.includes("logista");
       const isGov = u.tipo_usuario?.includes("prefeitura");
 
+      if (isMerchant || isGov) {
+        data.totalPartners++;
+      }
+
       if (!u.approved && (isMerchant || isGov)) {
         data.pendingUsers.push(u);
       }
@@ -195,8 +209,9 @@ export default function AdminDashboardPage() {
         }
       }
 
-      if (isMerchant && u.approved) {
+      if ((isMerchant || isGov) && u.approved) {
         data.activeMerchants++;
+        data.approvedPartners++;
       }
     });
 
@@ -205,6 +220,20 @@ export default function AdminDashboardPage() {
     });
 
     data.issImpact = data.totalCheckins * 15.5;
+    data.approvalRate = data.totalPartners > 0 ? (data.approvedPartners / data.totalPartners) * 100 : 0;
+    data.profileCompletionRate =
+      data.totalTourists > 0
+        ? (data.touristList.filter((u) => u.completed).length / data.totalTourists) * 100
+        : 0;
+    data.avgCheckinsPerTourist = data.totalTourists > 0 ? data.totalCheckins / data.totalTourists : 0;
+    data.activeSpotsRate =
+      allSpots.length > 0
+        ? (allSpots.filter((s) => s.isActive !== false).length / allSpots.length) * 100
+        : 0;
+    data.premiumEstRate =
+      allEstablishments.length > 0
+        ? (allEstablishments.filter((e) => e.premiumEnabled).length / allEstablishments.length) * 100
+        : 0;
 
     data.cities = Object.entries(cityCounts).map(([name, value]) => ({ name, value }));
     data.interests = Object.entries(interestCounts).map(([name, count]) => ({ name, count }));
@@ -218,7 +247,7 @@ export default function AdminDashboardPage() {
       .sort((a, b) => b.count - a.count);
 
     return data;
-  }, [allUsers, allCheckins, t, spots]);
+  }, [allUsers, allCheckins, t, spots, allSpots, allEstablishments]);
 
   const COLORS = ["#f97316", "#3b82f6", "#10b981", "#a855f7", "#ec4899", "#eab308"];
 
@@ -446,6 +475,36 @@ export default function AdminDashboardPage() {
           </TabsList>
 
           <TabsContent value="stats" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="bg-white/5 border-white/10 p-6 rounded-[2.5rem]">
+                <p className="text-[9px] text-white/40 font-bold uppercase tracking-widest">Aprovação Parceiros</p>
+                <p className="text-2xl font-black italic mt-2">{stats.approvalRate.toFixed(1)}%</p>
+                <p className="text-[9px] text-white/30 uppercase mt-1">
+                  {stats.approvedPartners} aprovados de {stats.totalPartners}
+                </p>
+              </Card>
+              <Card className="bg-white/5 border-white/10 p-6 rounded-[2.5rem]">
+                <p className="text-[9px] text-white/40 font-bold uppercase tracking-widest">Perfis Completos</p>
+                <p className="text-2xl font-black italic mt-2">{stats.profileCompletionRate.toFixed(1)}%</p>
+                <p className="text-[9px] text-white/30 uppercase mt-1">Turistas com cadastro finalizado</p>
+              </Card>
+              <Card className="bg-white/5 border-white/10 p-6 rounded-[2.5rem]">
+                <p className="text-[9px] text-white/40 font-bold uppercase tracking-widest">Ativos no Mapa</p>
+                <p className="text-2xl font-black italic mt-2">{stats.activeSpotsRate.toFixed(1)}%</p>
+                <p className="text-[9px] text-white/30 uppercase mt-1">Locais turísticos ativos</p>
+              </Card>
+              <Card className="bg-white/5 border-white/10 p-6 rounded-[2.5rem]">
+                <p className="text-[9px] text-white/40 font-bold uppercase tracking-widest">Premium Liberado</p>
+                <p className="text-2xl font-black italic mt-2">{stats.premiumEstRate.toFixed(1)}%</p>
+                <p className="text-[9px] text-white/30 uppercase mt-1">Estabelecimentos com destaque</p>
+              </Card>
+              <Card className="bg-white/5 border-white/10 p-6 rounded-[2.5rem]">
+                <p className="text-[9px] text-white/40 font-bold uppercase tracking-widest">Check-ins/Turista</p>
+                <p className="text-2xl font-black italic mt-2">{stats.avgCheckinsPerTourist.toFixed(2)}</p>
+                <p className="text-[9px] text-white/30 uppercase mt-1">Média por usuário</p>
+              </Card>
+            </div>
+
             <Card className="bg-white/5 border-white/10 p-8 rounded-[3rem]">
               <div className="flex items-center justify-between mb-8">
                 <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">

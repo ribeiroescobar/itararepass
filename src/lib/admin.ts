@@ -2,6 +2,7 @@ import "server-only";
 import { dbQuery } from "@/lib/db";
 import { getSessionFromCookies } from "@/lib/session";
 
+// Minimal fields needed to verify admin/merchant access.
 type SessionUser = {
   id: string;
   email: string;
@@ -10,6 +11,7 @@ type SessionUser = {
   tipo_usuario: string;
 };
 
+// Loads the user tied to the session cookie.
 async function getSessionUser() {
   const session = getSessionFromCookies();
   if (!session) return { ok: false as const, reason: "unauthorized" };
@@ -25,6 +27,7 @@ async function getSessionUser() {
   return { ok: true as const, session, user };
 }
 
+// Admins are approved users or the master user.
 export async function requireAdmin() {
   const sessionUser = await getSessionUser();
   if (!sessionUser.ok) return sessionUser;
@@ -40,6 +43,7 @@ export async function requireAdmin() {
   return { ok: true as const, session: sessionUser.session, isMaster, user };
 }
 
+// Only the master admin is allowed.
 export async function requireAdminMaster() {
   const sessionUser = await getSessionUser();
   if (!sessionUser.ok) return sessionUser;
@@ -54,6 +58,7 @@ export async function requireAdminMaster() {
   return { ok: true as const, session: sessionUser.session, isMaster, user };
 }
 
+// Merchants are approved users; master admin has full access too.
 export async function requireMerchant() {
   const sessionUser = await getSessionUser();
   if (!sessionUser.ok) return sessionUser;

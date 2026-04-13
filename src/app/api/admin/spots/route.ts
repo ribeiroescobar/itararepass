@@ -1,22 +1,23 @@
 import { NextResponse } from "next/server";
 import { dbQuery } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin";
+import { safeUrlOptional } from "@/lib/validation";
 import { z } from "zod";
 
 export const runtime = "nodejs";
 
 const schema = z.object({
-  id: z.string().min(1),
-  cityId: z.string().optional(),
-  name: z.string().min(1),
-  lat: z.number(),
-  lng: z.number(),
-  type: z.string(),
-  image: z.string().optional(),
-  capacity: z.number().int().optional(),
-  currentLoad: z.number().int().optional(),
-  averageRating: z.number().optional(),
-  historicalSnippet: z.string().optional(),
+  id: z.string().min(1).max(120),
+  cityId: z.string().max(120).optional(),
+  name: z.string().min(1).max(120),
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  type: z.string().max(80),
+  image: safeUrlOptional,
+  capacity: z.number().int().min(0).optional(),
+  currentLoad: z.number().int().min(0).optional(),
+  averageRating: z.number().min(0).max(5).optional(),
+  historicalSnippet: z.string().max(2000).optional(),
   isActive: z.boolean().optional(),
 });
 

@@ -1,19 +1,20 @@
 import { NextResponse } from "next/server";
 import { dbQuery } from "@/lib/db";
 import { requireMerchant } from "@/lib/admin";
+import { safeUrlNullable } from "@/lib/validation";
 import { z } from "zod";
 
 export const runtime = "nodejs";
 
 const schema = z.object({
-  title: z.string().optional(),
-  discount: z.string().optional(),
-  requirementLabel: z.string().optional().nullable(),
+  title: z.string().max(120).optional(),
+  discount: z.string().max(60).optional(),
+  requirementLabel: z.string().max(120).optional().nullable(),
   requiresProfile: z.boolean().optional(),
   requiresLodging: z.boolean().optional(),
-  minAdventureSpots: z.number().int().optional().nullable(),
+  minAdventureSpots: z.number().int().min(0).optional().nullable(),
   isPremium: z.boolean().optional(),
-  image: z.string().optional().nullable(),
+  image: safeUrlNullable,
   isActive: z.boolean().optional(),
 });
 
@@ -31,18 +32,22 @@ export async function PATCH(req: Request, context: { params: { id: string } }) {
   }
 
   const ownership = await dbQuery(
-    `SELECT e.owner_user_id
+    `SELECT e.owner_user_id, e.premium_enabled
      FROM coupons_catalog c
      JOIN establishments e ON e.id = c.establishment_id
      WHERE c.id = $1`,
     [id]
   );
   const ownerId = ownership.rows[0]?.owner_user_id;
+  const premiumEnabled = ownership.rows[0]?.premium_enabled;
   if (!ownerId) {
     return NextResponse.json({ error: "Cupom não encontrado." }, { status: 404 });
   }
   if (!auth.isMaster && ownerId !== auth.user.id) {
     return NextResponse.json({ error: "Sem permissão." }, { status: 403 });
+  }
+  if (parsed.data.isPremium && !auth.isMaster && !premiumEnabled) {
+    return NextResponse.json({ error: "Recurso premium não liberado para este estabelecimento." }, { status: 403 });
   }
 
   const data = parsed.data;
