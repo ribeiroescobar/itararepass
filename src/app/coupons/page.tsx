@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Info, ShieldCheck, Sparkles, Tag, Wallet } from "lucide-react";
+import { ArrowLeft, Copy, Info, ShieldCheck, Sparkles, Tag, Wallet } from "lucide-react";
 import { CouponCard } from "@/components/CouponCard";
 import { BottomNav } from "@/components/BottomNav";
+import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
 import {
   Dialog,
@@ -58,6 +59,24 @@ export default function CouponsPage() {
         variant: "destructive",
         title: t("coupon_qr_error"),
         description: err?.message || "Erro ao gerar QR do beneficio.",
+      });
+    }
+  };
+
+  const handleCopyCouponCode = async () => {
+    if (!activeQr?.token || typeof navigator === "undefined" || !navigator.clipboard) return;
+
+    try {
+      await navigator.clipboard.writeText(activeQr.token);
+      toast({
+        title: language === "en" ? "Code copied" : "Codigo copiado",
+        description: language === "en" ? "Share it with the merchant if scanning fails." : "Compartilhe com o comerciante se a camera nao ler.",
+      });
+    } catch {
+      toast({
+        variant: "destructive",
+        title: language === "en" ? "Copy failed" : "Falha ao copiar",
+        description: language === "en" ? "Try again in a moment." : "Tente novamente em instantes.",
       });
     }
   };
@@ -151,6 +170,23 @@ export default function CouponsPage() {
                     alt={language === "en" ? "Reward QR code" : "QR do beneficio"}
                     className="mx-auto h-[min(78vw,320px)] w-[min(78vw,320px)] rounded-2xl bg-white p-3 shadow-xl"
                   />
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCopyCouponCode}
+                  className="w-full rounded-2xl border-white/10 text-white/80"
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  {language === "en" ? "Copy validation code" : "Copiar codigo de validacao"}
+                </Button>
+
+                <div className="rounded-[1.5rem] border border-white/10 bg-black/20 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white/40">
+                    {language === "en" ? "Manual code" : "Codigo manual"}
+                  </p>
+                  <p className="mt-2 break-all text-[11px] leading-relaxed text-white/65">{activeQr.token}</p>
                 </div>
 
                 <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">

@@ -89,6 +89,7 @@ export default function MerchantDashboard() {
   const [couponImageUrl, setCouponImageUrl] = useState("");
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
   const [lastValidation, setLastValidation] = useState<CouponValidationResult | null>(null);
+  const [manualCouponToken, setManualCouponToken] = useState("");
 
   const isMaster = profile?.tipo_usuario === "admin_master";
   const canAccessCommercialPanel = profile?.role === "merchant" || isMaster;
@@ -140,7 +141,7 @@ export default function MerchantDashboard() {
     setCouponImageUrl("");
   };
 
-  const handleScan = async (token: string) => {
+  const validateCouponToken = async (token: string) => {
     setIsValidatingCoupon(true);
     try {
       const res = await fetch("/api/merchant/coupons/validate", {
@@ -163,6 +164,7 @@ export default function MerchantDashboard() {
         description: `${data.validation.couponTitle} aplicado para ${data.validation.touristName}.`,
       });
       setShowScanner(false);
+      setManualCouponToken("");
     } catch (err: any) {
       toast({
         variant: "destructive",
@@ -172,6 +174,16 @@ export default function MerchantDashboard() {
     } finally {
       setIsValidatingCoupon(false);
     }
+  };
+
+  const handleScan = async (token: string) => {
+    await validateCouponToken(token);
+  };
+
+  const handleManualValidation = async () => {
+    const token = manualCouponToken.trim();
+    if (!token) return;
+    await validateCouponToken(token);
   };
 
   const handleCreateEstablishment = async () => {
@@ -396,6 +408,24 @@ export default function MerchantDashboard() {
           >
             {isValidatingCoupon ? "Validando..." : "Abrir Scanner de Cupons"}
           </Button>
+
+          <div className="relative z-10 space-y-3">
+            <Input
+              value={manualCouponToken}
+              onChange={(e) => setManualCouponToken(e.target.value)}
+              placeholder="Colar codigo do cupom manualmente"
+              className="bg-black/40 border-white/10 rounded-2xl h-12 text-white text-[10px] uppercase tracking-wide"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleManualValidation}
+              disabled={isValidatingCoupon || !manualCouponToken.trim()}
+              className="w-full border-white/10 text-white/70 rounded-2xl h-12 text-[10px] uppercase font-black tracking-widest"
+            >
+              Validar Codigo Manual
+            </Button>
+          </div>
         </Card>
 
         <div className="grid grid-cols-2 gap-4">
