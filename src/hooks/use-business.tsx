@@ -64,6 +64,7 @@ interface BusinessContextType {
   rateSpot: (spotId: string, rating: number) => Promise<void>;
   useCoupon: (id: string) => Promise<CouponClaimResult | undefined>;
   addComment: (spotId: string, text: string, photo?: string, rating?: number) => Promise<void>;
+  refreshUserProgress: () => Promise<void>;
   t: (key: string) => string;
 }
 
@@ -163,6 +164,22 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
     return result;
   }, []);
 
+  const refreshUserProgress = useCallback(async () => {
+    if (!user) {
+      setUserCheckins([]);
+      setUserCoupons([]);
+      return;
+    }
+
+    const [checkinsData, couponsData] = await Promise.all([
+      fetchJson<{ checkins: any[] }>("/api/checkins").catch(() => ({ checkins: [] })),
+      fetchJson<{ coupons: any[] }>("/api/coupons").catch(() => ({ coupons: [] })),
+    ]);
+
+    setUserCheckins(checkinsData.checkins || []);
+    setUserCoupons(couponsData.coupons || []);
+  }, [user]);
+
   useEffect(() => {
     let active = true;
     if (!user) {
@@ -171,30 +188,26 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    fetchJson<{ checkins: any[] }>("/api/checkins")
-      .then((data) => {
-        if (!active) return;
-        setUserCheckins(data.checkins || []);
-      })
-      .catch(() => {
-        if (!active) return;
-        setUserCheckins([]);
-      });
+    refreshUserProgress().catch(() => {
+      if (!active) return;
+      setUserCheckins([]);
+      setUserCoupons([]);
+    });
 
-    fetchJson<{ coupons: any[] }>("/api/coupons")
-      .then((data) => {
-        if (!active) return;
-        setUserCoupons(data.coupons || []);
-      })
-      .catch(() => {
-        if (!active) return;
-        setUserCoupons([]);
-      });
+    const handleFocus = () => {
+      void refreshUserProgress();
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("focus", handleFocus);
+    }
 
     return () => {
       active = false;
+      if (typeof window !== "undefined") {
+        window.removeEventListener("focus", handleFocus);
+      }
     };
-  }, [user]);
+  }, [user, refreshUserProgress]);
 
   const fetchBaseData = useCallback(() => {
     fetchJson<{ spots: ApiSpot[] }>("/api/spots")
@@ -362,9 +375,10 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
       rateSpot,
       useCoupon,
       addComment,
+      refreshUserProgress,
       t,
     }),
-    [spots, coupons, language, t]
+    [spots, coupons, language, t, refreshUserProgress]
   );
 
   return <BusinessContext.Provider value={value}>{children}</BusinessContext.Provider>;

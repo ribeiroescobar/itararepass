@@ -21,6 +21,7 @@ import {
   PlusCircle,
   MapPin,
   Trash2,
+  Copy,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { BottomNav } from "@/components/BottomNav";
@@ -34,6 +35,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   ResponsiveContainer,
   PieChart,
@@ -111,6 +113,7 @@ export default function AdminDashboardPage() {
   const [estImageUrl, setEstImageUrl] = useState("");
   const [estCategory, setEstCategory] = useState("");
   const [estPremiumEnabled, setEstPremiumEnabled] = useState(false);
+  const [activeSpotQr, setActiveSpotQr] = useState<{ token: string; spot: { id: string; name: string; isActive: boolean } } | null>(null);
   const router = useRouter();
 
   const isAdminMaster = profile?.tipo_usuario === "admin_master";
@@ -418,6 +421,33 @@ export default function AdminDashboardPage() {
       body: JSON.stringify({ isActive: false }),
     });
     refreshData();
+  };
+
+  const handleShowSpotQr = async (spotId: string) => {
+    try {
+      const data = await fetchJson<{ token: string; spot: { id: string; name: string; isActive: boolean } }>(`/api/admin/spots/${spotId}/qr`);
+      setActiveSpotQr(data);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Falha ao gerar QR", description: err.message });
+    }
+  };
+
+  const handleCopySpotQr = async () => {
+    if (!activeSpotQr?.token || typeof navigator === "undefined" || !navigator.clipboard) return;
+
+    try {
+      await navigator.clipboard.writeText(activeSpotQr.token);
+      toast({
+        title: "Codigo copiado",
+        description: "Use o mesmo QR ou codigo manual para imprimir a placa do local.",
+      });
+    } catch {
+      toast({
+        variant: "destructive",
+        title: "Falha ao copiar",
+        description: "Nao foi possivel copiar o codigo agora.",
+      });
+    }
   };
 
   const handlePermanentDeleteEst = async (id: string, name: string) => {
@@ -774,6 +804,9 @@ export default function AdminDashboardPage() {
                         <Button variant="outline" className="border-white/10 text-white/60" onClick={() => handleEditSpot(spot)}>
                           Editar
                         </Button>
+                        <Button variant="outline" className="border-primary/20 text-primary" onClick={() => handleShowSpotQr(spot.id)}>
+                          QR da Placa
+                        </Button>
                         <Button variant="outline" className="border-white/10 text-white/50" onClick={() => handleDeactivateSpot(spot.id)}>
                           Desativar
                         </Button>
@@ -1018,7 +1051,58 @@ export default function AdminDashboardPage() {
           </TabsContent>
         </Tabs>
       </main>
-      <BottomNav />
+
+      <Dialog open={!!activeSpotQr} onOpenChange={(open) => !open && setActiveSpotQr(null)}>
+        <DialogContent className="max-h-[90vh] w-[calc(100%-1.5rem)] overflow-y-auto rounded-[2rem] border border-white/10 bg-[#0f1f18] p-0 text-white shadow-2xl">
+          {activeSpotQr && (
+            <div className="overflow-hidden rounded-[2rem]">
+              <div className="border-b border-white/10 bg-white/5 px-6 py-5">
+                <DialogHeader className="space-y-2 text-left">
+                  <DialogTitle className="text-xl font-black uppercase tracking-tight text-white">
+                    QR da Placa do Local
+                  </DialogTitle>
+                  <DialogDescription className="text-sm leading-relaxed text-white/60">
+                    Gere e imprima este QR para a placa fisica do atrativo. Fora do modo demo, o check-in continua exigindo proximidade real do GPS.
+                  </DialogDescription>
+                </DialogHeader>
+              </div>
+
+              <div className="space-y-5 px-6 py-6">
+                <div className="rounded-[1.75rem] border border-primary/20 bg-black/30 p-5 text-center">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=520x520&qzone=4&data=${encodeURIComponent(activeSpotQr.token)}`}
+                    alt={`QR da placa de ${activeSpotQr.spot.name}`}
+                    className="mx-auto h-[min(78vw,320px)] w-[min(78vw,320px)] rounded-2xl bg-white p-3 shadow-xl"
+                  />
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCopySpotQr}
+                  className="w-full rounded-2xl border-white/10 text-white/80"
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copiar codigo da placa
+                </Button>
+
+                <div className="rounded-[1.5rem] border border-white/10 bg-black/20 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Codigo manual</p>
+                  <p className="mt-2 break-all text-[11px] leading-relaxed text-white/65">{activeSpotQr.token}</p>
+                </div>
+
+                <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Local</p>
+                  <p className="mt-1 text-lg font-black italic text-white">{activeSpotQr.spot.name}</p>
+                  <p className="mt-2 text-xs leading-relaxed text-white/60">{activeSpotQr.spot.id}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {!activeSpotQr && <BottomNav />}
     </div>
   );
 }

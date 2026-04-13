@@ -92,7 +92,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "QR incompatível com o estabelecimento do benefício." }, { status: 400 });
   }
 
-  if (!auth.isMaster && row.ownerUserId !== auth.user.id) {
+  if (row.ownerUserId !== auth.user.id) {
     return NextResponse.json({ error: "Sem permissão para validar este cupom." }, { status: 403 });
   }
 

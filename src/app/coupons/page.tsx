@@ -30,7 +30,7 @@ type ActiveCouponQr = {
 };
 
 export default function CouponsPage() {
-  const { coupons, useCoupon, t, user, profile, isUserLoading, language } = useItarare();
+  const { coupons, useCoupon, t, user, profile, isUserLoading, language, refreshUserProgress } = useItarare();
   const router = useRouter();
   const [activeQr, setActiveQr] = useState<ActiveCouponQr | null>(null);
 
@@ -43,6 +43,32 @@ export default function CouponsPage() {
       router.replace(profile.role === "merchant" ? "/merchant/dashboard" : "/admin/dashboard");
     }
   }, [user, profile?.role, isUserLoading, router]);
+
+  useEffect(() => {
+    if (!activeQr) return;
+
+    const interval = window.setInterval(() => {
+      void refreshUserProgress();
+    }, 5000);
+
+    return () => window.clearInterval(interval);
+  }, [activeQr, refreshUserProgress]);
+
+  useEffect(() => {
+    if (!activeQr) return;
+
+    const currentCoupon = coupons.find((coupon) => coupon.id === activeQr.coupon.id);
+    if (!currentCoupon?.used) return;
+
+    setActiveQr(null);
+    toast({
+      title: language === "en" ? "Coupon used" : "Cupom utilizado",
+      description:
+        language === "en"
+          ? "This benefit has already been marked as used by the merchant."
+          : "Este beneficio ja foi marcado como utilizado pelo comerciante.",
+    });
+  }, [activeQr, coupons, language]);
 
   const handleUseCoupon = async (id: string) => {
     try {

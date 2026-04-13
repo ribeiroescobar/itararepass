@@ -158,13 +158,19 @@ export default function MerchantDashboard() {
         if (data?.validation) {
           setLastValidation(data.validation);
         }
+        if (res.status === 409) {
+          throw new Error("Este cupom ja foi utilizado anteriormente por este turista.");
+        }
+        if (res.status === 403) {
+          throw new Error("Somente o dono do comercio pode validar este cupom.");
+        }
         throw new Error(data?.error || "Nao foi possivel validar o cupom.");
       }
 
-      setLastValidation(data.validation);
+      setLastValidation({ ...data.validation, alreadyUsed: false });
       toast({
-        title: "Beneficio validado!",
-        description: `${data.validation.couponTitle} aplicado para ${data.validation.touristName}.`,
+        title: "Cupom utilizado!",
+        description: `${data.validation.couponTitle} marcado como usado para ${data.validation.touristName}.`,
       });
       setShowScanner(false);
       setManualCouponToken("");
@@ -492,7 +498,7 @@ export default function MerchantDashboard() {
                 </div>
                 <div className="rounded-full border border-green-500/30 bg-green-500/10 px-3 py-1">
                   <p className="text-[9px] font-black uppercase tracking-widest text-green-400">
-                    {lastValidation.alreadyUsed ? "Ja validado" : "Validado"}
+                    {lastValidation.alreadyUsed ? "Ja utilizado" : "Utilizado"}
                   </p>
                 </div>
               </div>

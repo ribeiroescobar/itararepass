@@ -80,6 +80,10 @@ function signCouponPartsV3(parts: { c: string; x: string }) {
   return createHmac("sha256", getJwtSecret()).update(payload).digest("base64url").slice(0, 12);
 }
 
+function signSpotParts(spotId: string) {
+  return createHmac("sha256", getJwtSecret()).update(`spot.${spotId}`).digest("base64url").slice(0, 16);
+}
+
 // Hash a raw password before storing it in the database.
 export async function hashPassword(password: string) {
   return bcrypt.hash(password, 10);
@@ -182,4 +186,32 @@ export function verifyCouponValidationToken(token: string) {
     couponId: fromCompactUuid(c),
     establishmentId: fromCompactUuid(e),
   };
+}
+
+// Issues a stable signed token for physical QR signs installed on attractions.
+export function signSpotValidationToken(spotId: string) {
+  if (!spotId?.trim()) {
+    throw new Error("Invalid spot id");
+  }
+  const normalizedSpotId = spotId.trim();
+  return `SPOT.${normalizedSpotId}.${signSpotParts(normalizedSpotId)}`;
+}
+
+// Verifies the signed QR code installed at a tourist attraction.
+export function verifySpotValidationToken(token: string) {
+  const normalizedToken = token.trim().replace(/\s+/g, "");
+  const [version, spotId, signature] = normalizedToken.split(".");
+
+  if (version !== "SPOT" || !spotId || !signature) {
+    throw new Error("Invalid spot token");
+  }
+
+  const expectedSignature = signSpotParts(spotId);
+  const receivedBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expectedSignature);
+  if (receivedBuffer.length !== expectedBuffer.length || !timingSafeEqual(receivedBuffer, expectedBuffer)) {
+    throw new Error("Invalid spot signature");
+  }
+
+  return { spotId };
 }

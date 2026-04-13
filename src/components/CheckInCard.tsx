@@ -3,7 +3,20 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, MapPin, Loader2, QrCode, Sparkles, ShieldCheck, Navigation, MessageSquare, ChevronRight, Star, Volume2, VolumeX, Lock } from "lucide-react";
+import {
+  CheckCircle2,
+  MapPin,
+  Loader2,
+  QrCode,
+  Sparkles,
+  ShieldCheck,
+  Navigation,
+  MessageSquare,
+  Star,
+  Volume2,
+  VolumeX,
+  Lock,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TouristSpot, useItarare } from "@/hooks/use-itarare";
@@ -48,38 +61,19 @@ export function CheckInCard({ spot, onCheckIn, userLocation }: CheckInCardProps)
   const handleNavClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     startNavigation(spot);
-    router.push('/map');
+    router.push("/map");
   };
 
   const handleValidateClick = () => {
     if (!user) {
-      toast({ title: "Identificação necessária", description: "Faça login para registrar suas aventuras e ganhar prêmios!" });
-      router.push('/login');
+      toast({
+        title: "Identificacao necessaria",
+        description: "Faca login para registrar suas aventuras e ganhar premios!",
+      });
+      router.push("/login");
       return;
     }
     setShowScanner(true);
-  };
-
-  const handleQRScanSuccess = (code: string) => {
-    if (demoMode || code === 'demo_success' || code === spot.id) {
-      if (!demoMode) {
-        if (!userLocation) {
-          toast({ variant: "destructive", title: "GPS Indisponível" });
-          return;
-        }
-        const distance = getDistance(userLocation.lat, userLocation.lng, spot.lat, spot.lng);
-        if (distance > 0.30) {
-          toast({ variant: "destructive", title: t('distance_block') });
-          setShowScanner(false);
-          return; 
-        }
-      }
-      
-      completeCheckIn();
-      setShowScanner(false);
-    } else {
-      toast({ title: t('incorrect_token'), variant: "destructive" });
-    }
   };
 
   const completeCheckIn = async () => {
@@ -87,123 +81,215 @@ export function CheckInCard({ spot, onCheckIn, userLocation }: CheckInCardProps)
     try {
       let insightResult = "";
       try {
-        const result = await generateLocationInsight({ 
+        const result = await generateLocationInsight({
           locationName: spot.name,
-          language: language
+          language,
         });
         insightResult = result.insight || t(`${spot.id}_snippet`);
-      } catch (aiErr) {
+      } catch {
         insightResult = t(`${spot.id}_snippet`);
       }
-      
+
       await onCheckIn(spot.id, insightResult, language);
-      toast({ title: t('checkin_complete') });
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Erro ao registrar presença" });
+      toast({ title: t("checkin_complete") });
+    } catch {
+      toast({ variant: "destructive", title: "Erro ao registrar presenca" });
     } finally {
       setLoading(false);
     }
   };
 
+  const handleQRScanSuccess = (code: string) => {
+    void (async () => {
+      if (demoMode && code === "demo_success") {
+        await completeCheckIn();
+        setShowScanner(false);
+        return;
+      }
+
+      try {
+        const verifyRes = await fetch("/api/checkins/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: code, spotId: spot.id }),
+        });
+        const verifyData = await verifyRes.json().catch(() => null);
+
+        if (!verifyRes.ok) {
+          throw new Error(verifyData?.error || t("incorrect_token"));
+        }
+
+        if (!demoMode) {
+          if (!userLocation) {
+            toast({ variant: "destructive", title: "GPS Indisponivel" });
+            return;
+          }
+
+          const distance = getDistance(userLocation.lat, userLocation.lng, spot.lat, spot.lng);
+          if (distance > 0.3) {
+            toast({ variant: "destructive", title: t("distance_block") });
+            setShowScanner(false);
+            return;
+          }
+        }
+
+        await completeCheckIn();
+        setShowScanner(false);
+      } catch (err: any) {
+        toast({ title: err?.message || t("incorrect_token"), variant: "destructive" });
+      }
+    })();
+  };
+
   const handleSpeak = useCallback(async () => {
     if (isPlaying) {
-      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
       setIsPlaying(false);
       return;
     }
 
-    // Lógica inteligente de idioma:
-    // Se o insight salvo no banco estiver no mesmo idioma do app, usa ele (IA personalizada).
-    // Se estiver em idioma diferente, usa o snippet estático traduzido para garantir compreensão.
-    const textToSpeak = (spot.visited && spot.insightLanguage === language && spot.historicalSnippet)
-      ? spot.historicalSnippet
-      : t(`${spot.id}_snippet`);
+    const textToSpeak =
+      spot.visited && spot.insightLanguage === language && spot.historicalSnippet
+        ? spot.historicalSnippet
+        : t(`${spot.id}_snippet`);
 
     setLoadingAudio(true);
     try {
-      const result = await textToSpeech({ text: textToSpeak, language: language });
+      const result = await textToSpeech({ text: textToSpeak, language });
       if (result.audioUri) {
         const audio = new Audio(result.audioUri);
         audioRef.current = audio;
-        audio.onplay = () => { setLoadingAudio(false); setIsPlaying(true); };
-        audio.onended = () => { setIsPlaying(false); audioRef.current = null; };
+        audio.onplay = () => {
+          setLoadingAudio(false);
+          setIsPlaying(true);
+        };
+        audio.onended = () => {
+          setIsPlaying(false);
+          audioRef.current = null;
+        };
         await audio.play();
       }
-    } catch (err) {
+    } catch {
       setLoadingAudio(false);
       setIsPlaying(false);
     }
-  }, [isPlaying, spot.historicalSnippet, spot.insightLanguage, spot.id, t, language]);
+  }, [isPlaying, spot.visited, spot.insightLanguage, spot.historicalSnippet, spot.id, language, t]);
 
   return (
     <>
-      <Card className={`overflow-hidden border-none rounded-[2.5rem] shadow-2xl flex flex-col transition-all duration-500 ${spot.visited ? 'bg-green-950/20' : 'bg-white/5'}`}>
+      <Card
+        className={`flex flex-col overflow-hidden rounded-[2.5rem] border-none shadow-2xl transition-all duration-500 ${
+          spot.visited ? "bg-green-950/20" : "bg-white/5"
+        }`}
+      >
         <div className="relative h-44 w-full">
           <Image src={spot.image} alt={spot.name} fill className="object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-          
-          <div className="absolute top-4 right-4 flex gap-2">
-            <button onClick={handleNavClick} className="bg-black/60 p-2.5 rounded-2xl border border-white/10 text-white"><Navigation className="w-4 h-4" /></button>
-            <div className={`text-white text-[8px] font-black px-3 py-1.5 rounded-full flex items-center gap-1.5 uppercase ${spot.type === 'lodging' ? 'bg-blue-600' : 'bg-primary'}`}>
-              {spot.type === 'lodging' ? t('lodging') : t('adventure')}
+
+          <div className="absolute right-4 top-4 flex gap-2">
+            <button
+              onClick={handleNavClick}
+              className="rounded-2xl border border-white/10 bg-black/60 p-2.5 text-white"
+            >
+              <Navigation className="w-4 h-4" />
+            </button>
+            <div
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[8px] font-black uppercase text-white ${
+                spot.type === "lodging" ? "bg-blue-600" : "bg-primary"
+              }`}
+            >
+              {spot.type === "lodging" ? t("lodging") : t("adventure")}
             </div>
           </div>
         </div>
-        
-        <div className="p-6 flex flex-1 flex-col">
-          <div className="mb-4 flex justify-between items-start">
+
+        <div className="flex flex-1 flex-col p-6">
+          <div className="mb-4 flex items-start justify-between">
             <div>
-              <h3 className="text-lg font-black text-white uppercase italic tracking-tighter">{spot.name}</h3>
-              <div className="flex items-center gap-1 mt-1">
-                {[1,2,3,4,5].map(i => <Star key={i} className={`w-2.5 h-2.5 ${i <= Math.round(spot.averageRating) ? 'fill-primary text-primary' : 'text-white/20'}`} />)}
-                <span className="text-[9px] text-white/40 font-bold ml-1">{spot.averageRating}</span>
+              <h3 className="text-lg font-black uppercase tracking-tighter text-white italic">{spot.name}</h3>
+              <div className="mt-1 flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Star
+                    key={i}
+                    className={`w-2.5 h-2.5 ${i <= Math.round(spot.averageRating) ? "fill-primary text-primary" : "text-white/20"}`}
+                  />
+                ))}
+                <span className="ml-1 text-[9px] font-bold text-white/40">{spot.averageRating}</span>
               </div>
             </div>
             {spot.visited && (
               <Sheet>
                 <SheetTrigger asChild>
-                  <button className="p-2.5 bg-white/5 rounded-2xl border border-white/10 text-primary hover:bg-white/10 transition-colors">
+                  <button className="rounded-2xl border border-white/10 bg-white/5 p-2.5 text-primary transition-colors hover:bg-white/10">
                     <MessageSquare className="w-4 h-4" />
                   </button>
                 </SheetTrigger>
-                <SheetContent side="bottom" className="h-[85vh] bg-[#0d1a14] border-t border-white/10 rounded-t-[3rem] overflow-hidden p-0">
-                  <SheetHeader className="p-8 border-b border-white/5">
-                    <SheetTitle className="text-2xl font-black text-white uppercase italic tracking-tighter flex items-center gap-3">
+                <SheetContent side="bottom" className="h-[85vh] overflow-hidden rounded-t-[3rem] border-t border-white/10 bg-[#0d1a14] p-0">
+                  <SheetHeader className="border-b border-white/5 p-8">
+                    <SheetTitle className="flex items-center gap-3 text-2xl font-black uppercase tracking-tighter text-white italic">
                       <Sparkles className="w-6 h-6 text-primary" />
-                      {t('memories_title')}
+                      {t("memories_title")}
                     </SheetTitle>
                   </SheetHeader>
-                  <div className="h-full overflow-y-auto p-8 no-scrollbar">
+                  <div className="no-scrollbar h-full overflow-y-auto p-8">
                     <SpotComments spotId={spot.id} />
                   </div>
                 </SheetContent>
               </Sheet>
             )}
           </div>
-          
+
           {spot.visited && (
-            <div className="mb-6 p-4 bg-primary/10 rounded-2xl border border-primary/20 relative">
-              <p className="text-[11px] text-white/80 leading-relaxed italic pr-10">
-                "{(spot.insightLanguage === language && spot.historicalSnippet) ? spot.historicalSnippet : t(`${spot.id}_snippet`)}"
+            <div className="relative mb-6 rounded-2xl border border-primary/20 bg-primary/10 p-4">
+              <p className="pr-10 text-[11px] italic leading-relaxed text-white/80">
+                "
+                {spot.insightLanguage === language && spot.historicalSnippet
+                  ? spot.historicalSnippet
+                  : t(`${spot.id}_snippet`)}
+                "
               </p>
-              <button onClick={handleSpeak} className="absolute top-3 right-3 w-8 h-8 rounded-xl bg-primary/20 text-primary flex items-center justify-center">
-                {loadingAudio ? <Loader2 className="w-4 h-4 animate-spin" /> : isPlaying ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              <button
+                onClick={handleSpeak}
+                className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-xl bg-primary/20 text-primary"
+              >
+                {loadingAudio ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : isPlaying ? (
+                  <VolumeX className="w-4 h-4" />
+                ) : (
+                  <Volume2 className="w-4 h-4" />
+                )}
               </button>
             </div>
           )}
 
           <div className="mt-auto flex flex-col gap-3">
             {spot.visited ? (
-              <Button className="w-full bg-green-600/20 text-green-500 border border-green-500/30 font-black h-12 rounded-2xl text-[10px] uppercase cursor-default">
-                <ShieldCheck className="w-3.5 h-3.5 mr-2" /> {t('verified_visitor')}
+              <Button className="h-12 w-full cursor-default rounded-2xl border border-green-500/30 bg-green-600/20 text-[10px] font-black uppercase text-green-500">
+                <ShieldCheck className="mr-2 w-3.5 h-3.5" /> {t("verified_visitor")}
               </Button>
             ) : (
-              <Button 
+              <Button
                 onClick={handleValidateClick}
                 disabled={loading}
-                className={`w-full text-white font-black h-12 rounded-2xl text-[10px] uppercase shadow-xl flex items-center justify-center gap-2 ${spot.type === 'lodging' ? 'bg-blue-600' : 'bg-primary'}`}
+                className={`flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-[10px] font-black uppercase text-white shadow-xl ${
+                  spot.type === "lodging" ? "bg-blue-600" : "bg-primary"
+                }`}
               >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : user ? <><QrCode className="w-4 h-4" /> {t('validate_checkin')}</> : <><Lock className="w-3.5 h-3.5" /> Entrar para Validar</>}
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : user ? (
+                  <>
+                    <QrCode className="w-4 h-4" /> {t("validate_checkin")}
+                  </>
+                ) : (
+                  <>
+                    <Lock className="w-3.5 h-3.5" /> Entrar para Validar
+                  </>
+                )}
               </Button>
             )}
           </div>
@@ -211,12 +297,12 @@ export function CheckInCard({ spot, onCheckIn, userLocation }: CheckInCardProps)
       </Card>
 
       {showScanner && (
-        <QRScanner 
-          onScan={handleQRScanSuccess} 
-          onClose={() => setShowScanner(false)} 
-          targetName={spot.name} 
-          demoMode={demoMode} 
-          targetId={spot.id} 
+        <QRScanner
+          onScan={handleQRScanSuccess}
+          onClose={() => setShowScanner(false)}
+          targetName={spot.name}
+          demoMode={demoMode}
+          targetId="any"
         />
       )}
     </>
