@@ -27,8 +27,10 @@ export default function EntryPortalPage() {
     if (user && !isUserLoading) {
       if (isMaster) {
         router.push("/admin/dashboard");
+      } else if (profile?.role === "admin") {
+        router.push(profile.approved ? "/admin/dashboard" : "/profile");
       } else if (profile?.role === "merchant") {
-        router.push("/merchant/dashboard");
+        router.push(profile.approved ? "/merchant/dashboard" : "/profile");
       } else {
         router.push("/explore");
       }

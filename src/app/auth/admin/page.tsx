@@ -34,7 +34,7 @@ export default function AdminAuthPage() {
 
   useEffect(() => {
     if (user && profile && profile.role === "admin") {
-      router.push("/admin/dashboard");
+      router.push(profile.approved || profile.tipo_usuario === "admin_master" ? "/admin/dashboard" : "/profile");
     }
   }, [user, profile, router]);
 

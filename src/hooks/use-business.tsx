@@ -27,7 +27,9 @@ export interface Coupon {
   businessName: string;
   address: string;
   discount: string;
+  claimed?: boolean;
   used: boolean;
+  usedAt?: string;
   image: string;
   locked?: boolean;
   requirementLabel?: string;
@@ -41,6 +43,18 @@ export interface Coupon {
   translationKey?: string;
 }
 
+export interface CouponClaimResult {
+  token: string;
+  alreadyClaimed: boolean;
+  expiresInMinutes: number;
+  coupon: {
+    id: string;
+    title: string;
+    discount: string;
+    businessName: string;
+  };
+}
+
 interface BusinessContextType {
   spots: TouristSpot[];
   coupons: Coupon[];
@@ -48,7 +62,7 @@ interface BusinessContextType {
   setLanguage: (lang: Language) => void;
   checkIn: (spotId: string, insight?: string, lang?: string) => Promise<void>;
   rateSpot: (spotId: string, rating: number) => Promise<void>;
-  useCoupon: (id: string) => Promise<void>;
+  useCoupon: (id: string) => Promise<CouponClaimResult | undefined>;
   addComment: (spotId: string, text: string, photo?: string, rating?: number) => Promise<void>;
   t: (key: string) => string;
 }
@@ -236,7 +250,9 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
 
     const sourceCoupons = uniqueById<ApiCoupon>((baseCoupons.length > 0 ? baseCoupons : INITIAL_COUPONS) as ApiCoupon[]);
     return sourceCoupons.map((coupon) => {
-      const isUsed = userCoupons?.some((uc) => uc.id === coupon.id && uc.used);
+      const userCoupon = userCoupons?.find((uc) => uc.id === coupon.id);
+      const isClaimed = !!userCoupon;
+      const isUsed = !!userCoupon?.used;
       const translationKey = resolveCouponTranslationKey(coupon);
 
       let unlocked = true;
@@ -267,7 +283,9 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
         address: translationKey ? translateOrFallback(`${translationKey}_addr`, coupon.address) : coupon.address,
         discount: translationKey ? translateOrFallback(`${translationKey}_discount`, coupon.discount) : coupon.discount,
         image: coupon.image || (coupon as any).businessImage || coupon.image,
+        claimed: isClaimed,
         used: !!isUsed,
+        usedAt: userCoupon?.usedAt,
         locked: !unlocked,
         requirementLabel: reqLabel,
         statusLabel: statusLabel,
@@ -304,13 +322,14 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
 
   const useCoupon = async (couponId: string) => {
     if (!user) return;
-    await fetchJson("/api/coupons/use", {
+    const result = await fetchJson<CouponClaimResult>("/api/coupons/use", {
       method: "POST",
       body: JSON.stringify({ couponId }),
     });
 
     const updated = await fetchJson<{ coupons: any[] }>("/api/coupons");
     setUserCoupons(updated.coupons || []);
+    return result;
   };
 
   const addComment = async (spotId: string, text: string, photo?: string, rating?: number) => {

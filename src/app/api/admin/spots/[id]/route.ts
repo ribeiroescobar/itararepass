@@ -20,7 +20,7 @@ const schema = z.object({
   isActive: z.boolean().optional(),
 });
 
-export async function PATCH(req: Request, context: { params: { id: string } }) {
+export async function PATCH(req: Request, context: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
   if (!admin.ok) {
     return NextResponse.json({ error: "Sem permissão." }, { status: admin.reason === "forbidden" ? 403 : 401 });
@@ -32,7 +32,7 @@ export async function PATCH(req: Request, context: { params: { id: string } }) {
     return NextResponse.json({ error: "Dados inválidos." }, { status: 400 });
   }
 
-  const { id } = context.params;
+  const { id } = await context.params;
   const data = parsed.data;
 
   await dbQuery(
@@ -69,13 +69,13 @@ export async function PATCH(req: Request, context: { params: { id: string } }) {
   return NextResponse.json({ ok: true });
 }
 
-export async function DELETE(_: Request, context: { params: { id: string } }) {
+export async function DELETE(_: Request, context: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
   if (!admin.ok) {
     return NextResponse.json({ error: "Sem permissão." }, { status: admin.reason === "forbidden" ? 403 : 401 });
   }
 
-  const { id } = context.params;
+  const { id } = await context.params;
   await dbQuery("UPDATE spots SET is_active = false, updated_at = now() WHERE id = $1", [id]);
   return NextResponse.json({ ok: true });
 }

@@ -48,7 +48,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...options,
@@ -112,7 +111,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     return { ...profile, role };
-  }, [isMaster, user, profile]);
+  }, [user, profile]);
+
+  const getPostLoginRoute = useCallback((nextProfile: UserProfile) => {
+    const isPendingPartner =
+      (nextProfile.role === "merchant" || nextProfile.role === "admin") &&
+      !nextProfile.approved &&
+      nextProfile.tipo_usuario !== "admin_master";
+
+    if (nextProfile.tipo_usuario === "admin_master") return "/admin/dashboard";
+    if (isPendingPartner) return "/profile";
+    if (nextProfile.role === "admin") return "/admin/dashboard";
+    if (nextProfile.role === "merchant") return "/merchant/dashboard";
+    return "/explore";
+  }, []);
 
   const isAuthorized = useCallback(
     (requestedRole: "admin" | "merchant") => {
@@ -137,27 +149,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         method: "POST",
         body: JSON.stringify({ email, pass, name, role, additional }),
       });
+
       setUser(data.user);
       setProfile(data.profile);
+
       if (!data.profile.approved) {
-        toast({ title: "Cadastro Recebido", description: "Aguarde a liberação do Administrador." });
+        toast({
+          title: "Cadastro em Analise",
+          description: "Seu acesso sera liberado apos a aprovacao da equipe.",
+        });
+        router.push("/profile");
       } else {
-        toast({ title: "Bem-vindo ao Itararé Pass!" });
-        if (data.profile.role === "admin") {
-          router.push("/admin/dashboard");
-        } else if (data.profile.role === "merchant") {
-          router.push("/merchant/dashboard");
-        } else {
-          router.push("/explore");
-        }
+        toast({ title: "Bem-vindo ao Itarare Pass!" });
+        router.push(getPostLoginRoute(data.profile));
       }
     } catch (err: any) {
-      if (err?.message?.includes("E-mail já existe")) {
+      if (err?.message?.includes("E-mail já existe") || err?.message?.includes("E-mail jÃ¡ existe")) {
         try {
           await login(email, pass, onFinally);
           return;
         } catch {
-          toast({ variant: "destructive", title: "Conta já existe", description: "O e-mail informado já está em uso." });
+          toast({
+            variant: "destructive",
+            title: "Conta ja existe",
+            description: "Se este cadastro estiver pendente, aguarde a aprovacao. Caso contrario, confira a senha informada.",
+          });
         }
       } else {
         toast({ variant: "destructive", title: "Erro no Cadastro", description: err.message });
@@ -173,22 +189,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         method: "POST",
         body: JSON.stringify({ email, pass }),
       });
+
       setUser(data.user);
       setProfile(data.profile);
-      toast({ title: "Acesso validado!" });
-      if (data.profile.role === "admin") {
-        router.push("/admin/dashboard");
-      } else if (data.profile.role === "merchant") {
-        router.push("/merchant/dashboard");
+
+      if (
+        (data.profile.role === "admin" || data.profile.role === "merchant") &&
+        !data.profile.approved &&
+        data.profile.tipo_usuario !== "admin_master"
+      ) {
+        toast({
+          title: "Aguardando Aprovacao",
+          description: "Seu cadastro foi recebido e o login sera liberado apos a aprovacao da equipe.",
+        });
+        router.push("/profile");
       } else {
-        router.push("/explore");
+        toast({ title: "Acesso validado!" });
+        router.push(getPostLoginRoute(data.profile));
       }
     } catch (err: any) {
       const msg =
-        err.message === "Credenciais inválidas."
+        err.message === "Credenciais inválidas." || err.message === "Credenciais invÃ¡lidas."
           ? "E-mail ou senha incorretos."
           : "Erro ao acessar o portal.";
-      toast({ variant: "destructive", title: "Falha na Autenticação", description: msg });
+      toast({ variant: "destructive", title: "Falha na Autenticacao", description: msg });
     } finally {
       onFinally?.();
     }
@@ -209,7 +233,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       method: "PATCH",
       body: JSON.stringify(data),
     });
-    toast({ title: "Acesso Liberado!", description: "O usuário já pode acessar o sistema." });
+    toast({ title: "Acesso Liberado!", description: "O usuario ja pode acessar o sistema." });
   };
 
   const logout = async () => {

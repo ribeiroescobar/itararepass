@@ -12,7 +12,7 @@ const schema = z.object({
   tipo_usuario: z.string().optional(),
 });
 
-export async function PATCH(req: Request, context: { params: { id: string } }) {
+export async function PATCH(req: Request, context: { params: Promise<{ id: string }> }) {
   const admin = await requireAdminMaster();
   if (!admin.ok) {
     return NextResponse.json({ error: "Sem permissão." }, { status: admin.reason === "forbidden" ? 403 : 401 });
@@ -24,7 +24,7 @@ export async function PATCH(req: Request, context: { params: { id: string } }) {
     return NextResponse.json({ error: "Dados inválidos." }, { status: 400 });
   }
 
-  const { id } = context.params;
+  const { id } = await context.params;
   const fields = parsed.data;
 
   const result = await dbQuery<DbUser>(

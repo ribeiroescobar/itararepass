@@ -55,6 +55,15 @@ type ManagedCoupon = {
   isActive?: boolean;
 };
 
+type CouponValidationResult = {
+  touristName: string;
+  couponTitle: string;
+  discount: string;
+  establishmentName: string;
+  validatedAt?: string;
+  alreadyUsed?: boolean;
+};
+
 export default function MerchantDashboard() {
   const [showScanner, setShowScanner] = useState(false);
   const { isUserLoading, profile } = useItarare();
@@ -78,6 +87,8 @@ export default function MerchantDashboard() {
   const [couponRequiresLodging, setCouponRequiresLodging] = useState(false);
   const [couponIsPremium, setCouponIsPremium] = useState(false);
   const [couponImageUrl, setCouponImageUrl] = useState("");
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+  const [lastValidation, setLastValidation] = useState<CouponValidationResult | null>(null);
 
   const isMaster = profile?.tipo_usuario === "admin_master";
   const canAccessCommercialPanel = profile?.role === "merchant" || isMaster;
@@ -129,12 +140,38 @@ export default function MerchantDashboard() {
     setCouponImageUrl("");
   };
 
-  const handleScan = () => {
-    toast({
-      title: "Beneficio aplicado!",
-      description: "O cupom foi validado com sucesso no PDV.",
-    });
-    setShowScanner(false);
+  const handleScan = async (token: string) => {
+    setIsValidatingCoupon(true);
+    try {
+      const res = await fetch("/api/merchant/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        if (data?.validation) {
+          setLastValidation(data.validation);
+        }
+        throw new Error(data?.error || "Nao foi possivel validar o cupom.");
+      }
+
+      setLastValidation(data.validation);
+      toast({
+        title: "Beneficio validado!",
+        description: `${data.validation.couponTitle} aplicado para ${data.validation.touristName}.`,
+      });
+      setShowScanner(false);
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Falha na validacao",
+        description: err.message || "QR invalido ou sem permissao para este cupom.",
+      });
+    } finally {
+      setIsValidatingCoupon(false);
+    }
   };
 
   const handleCreateEstablishment = async () => {
@@ -347,16 +384,17 @@ export default function MerchantDashboard() {
             <QrCode className="w-10 h-10 text-primary" />
           </div>
           <div className="relative z-10">
-            <h2 className="text-xl font-black text-white uppercase italic tracking-tight">Validar Turista</h2>
+            <h2 className="text-xl font-black text-white uppercase italic tracking-tight">Validar Cupom</h2>
             <p className="text-xs text-white/40 mt-2 leading-relaxed max-w-[280px] mx-auto">
-              Escaneie o QR Code do passaporte digital do turista para confirmar check-ins e dar baixa no beneficio.
+              Escaneie o QR do beneficio apresentado pelo turista para confirmar a autenticidade e dar baixa no caixa.
             </p>
           </div>
           <Button
             onClick={() => setShowScanner(true)}
+            disabled={isValidatingCoupon}
             className="w-full bg-primary hover:bg-primary/90 text-white font-black h-16 rounded-[2rem] text-xs uppercase tracking-widest shadow-xl shadow-primary/20 relative z-10 transition-all active:scale-95"
           >
-            Abrir Scanner de Vendas
+            {isValidatingCoupon ? "Validando..." : "Abrir Scanner de Cupons"}
           </Button>
         </Card>
 
@@ -378,9 +416,31 @@ export default function MerchantDashboard() {
             <History className="w-4 h-4 text-white/20" />
             <h3 className="text-[10px] font-black text-white/40 uppercase tracking-widest">Atividade Recente</h3>
           </div>
-          <div className="text-center py-12 bg-white/5 rounded-[2.5rem] border border-dashed border-white/10">
-            <p className="text-[10px] text-white/20 font-bold uppercase">Nenhuma atividade registrada hoje</p>
-          </div>
+          {lastValidation ? (
+            <Card className="bg-white/5 border-white/10 p-6 rounded-[2.5rem] space-y-3 shadow-xl">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-black text-white">{lastValidation.couponTitle}</p>
+                  <p className="text-[9px] text-white/40 uppercase tracking-widest">
+                    {lastValidation.establishmentName} • {lastValidation.discount}
+                  </p>
+                </div>
+                <div className="rounded-full border border-green-500/30 bg-green-500/10 px-3 py-1">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-green-400">
+                    {lastValidation.alreadyUsed ? "Ja validado" : "Validado"}
+                  </p>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-white/5 bg-black/30 p-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Turista</p>
+                <p className="mt-1 text-sm font-bold text-white">{lastValidation.touristName}</p>
+              </div>
+            </Card>
+          ) : (
+            <div className="text-center py-12 bg-white/5 rounded-[2.5rem] border border-dashed border-white/10">
+              <p className="text-[10px] text-white/20 font-bold uppercase">Nenhuma validacao registrada nesta sessao</p>
+            </div>
+          )}
         </section>
 
         <section className="space-y-4">
@@ -569,7 +629,15 @@ export default function MerchantDashboard() {
       </main>
 
       {showScanner && (
-        <QRScanner onScan={handleScan} onClose={() => setShowScanner(false)} targetName="Passaporte do Turista" demoMode={false} targetId="any" />
+        <QRScanner
+          onScan={handleScan}
+          onClose={() => setShowScanner(false)}
+          targetName="Cupom do Turista"
+          demoMode={false}
+          targetId="any"
+          title="Validacao de Cupom"
+          scanHint="Aponte para o QR do beneficio exibido pelo turista na carteira de cupons."
+        />
       )}
       <BottomNav />
     </div>

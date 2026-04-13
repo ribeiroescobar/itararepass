@@ -21,12 +21,16 @@ export default function HomePage() {
     if (isProfileLoading) return;
 
     if (profile) {
-      if (profile.role === "admin") {
+      if (profile.tipo_usuario === "admin_master") {
         router.replace("/admin/dashboard");
         return;
       }
+      if (profile.role === "admin") {
+        router.replace(profile.approved ? "/admin/dashboard" : "/profile");
+        return;
+      }
       if (profile.role === "merchant") {
-        router.replace("/merchant/dashboard");
+        router.replace(profile.approved ? "/merchant/dashboard" : "/profile");
         return;
       }
       router.replace("/explore");

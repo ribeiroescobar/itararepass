@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getSessionFromCookies } from "@/lib/session";
 import { dbQuery } from "@/lib/db";
 
@@ -11,11 +11,11 @@ export async function GET() {
   }
 
   const result = await dbQuery(
-    `SELECT coupon_id as "id", used, used_at as "usedAt"
-     FROM user_coupons WHERE user_id = $1`,
+    `SELECT coupon_id as "id", true as claimed, used, used_at as "usedAt"
+     FROM user_coupons
+     WHERE user_id = $1`,
     [session.sub]
   );
 
   return NextResponse.json({ coupons: result.rows });
 }
-

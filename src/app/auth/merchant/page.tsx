@@ -35,7 +35,7 @@ export default function MerchantAuthPage() {
 
   useEffect(() => {
     if (user && profile && profile.role === 'merchant') {
-      router.push('/merchant/dashboard');
+      router.push(profile.approved ? '/merchant/dashboard' : '/profile');
     }
   }, [user, profile, router]);
 

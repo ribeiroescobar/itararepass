@@ -18,13 +18,13 @@ const schema = z.object({
   premiumEnabled: z.boolean().optional(),
 });
 
-export async function PATCH(req: Request, context: { params: { id: string } }) {
+export async function PATCH(req: Request, context: { params: Promise<{ id: string }> }) {
   const auth = await requireMerchant();
   if (!auth.ok) {
     return NextResponse.json({ error: "Sem permissão." }, { status: auth.reason === "forbidden" ? 403 : 401 });
   }
 
-  const { id } = context.params;
+  const { id } = await context.params;
   const body = await req.json().catch(() => null);
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
@@ -75,13 +75,13 @@ export async function PATCH(req: Request, context: { params: { id: string } }) {
   return NextResponse.json({ ok: true });
 }
 
-export async function DELETE(_: Request, context: { params: { id: string } }) {
+export async function DELETE(_: Request, context: { params: Promise<{ id: string }> }) {
   const auth = await requireMerchant();
   if (!auth.ok) {
     return NextResponse.json({ error: "Sem permissão." }, { status: auth.reason === "forbidden" ? 403 : 401 });
   }
 
-  const { id } = context.params;
+  const { id } = await context.params;
   const ownershipCheck = await dbQuery(
     "SELECT owner_user_id FROM establishments WHERE id = $1",
     [id]

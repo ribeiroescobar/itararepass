@@ -79,7 +79,7 @@ export default function ProfilePage() {
   const isTourist = profile?.role === "tourist";
   const isGovernment = profile?.role === "admin" && !isMaster;
   const artisanReward = coupons.find((coupon) => coupon.translationKey === "c_artesao");
-  const showTouristGift = isTourist && artisanReward && !artisanReward.used && !artisanReward.locked;
+  const showTouristGift = isTourist && artisanReward && !artisanReward.claimed && !artisanReward.used && !artisanReward.locked;
 
   const copy = language === "en"
     ? {

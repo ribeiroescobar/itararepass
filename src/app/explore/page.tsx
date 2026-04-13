@@ -115,8 +115,8 @@ export default function ExplorePage() {
               <ArcProgress current={visitedCount} total={spots.length} />
             </div>
             
-            <div className="mt-6 pt-6 border-t border-white/5 w-full space-y-4">
-              <div className="flex justify-between items-center px-2">
+            <div className="mt-6 pt-6 border-t border-white/5 w-full space-y-6">
+              <div className="flex justify-between items-center px-2 pb-1">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 bg-primary/20 rounded-xl flex items-center justify-center border border-primary/20">
                     <Tag className="w-4 h-4 text-primary" />

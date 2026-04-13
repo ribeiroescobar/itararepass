@@ -144,10 +144,19 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     if (!isUserLoading && !canAccessData && user) {
+      if (profile?.role === "admin" && !profile?.approved && profile?.tipo_usuario !== "admin_master") {
+        toast({
+          title: "Cadastro em Analise",
+          description: "Seu acesso administrativo sera liberado apos a aprovacao da equipe.",
+        });
+        router.replace("/profile");
+        return;
+      }
+
       toast({ variant: "destructive", title: "Acesso Negado", description: "Sua conta nao possui permissao para esta area." });
       router.replace("/explore");
     }
-  }, [isUserLoading, canAccessData, router, user]);
+  }, [isUserLoading, canAccessData, router, user, profile]);
 
   // Aggregates metrics and charts from raw API data.
   const stats = useMemo(() => {

@@ -18,6 +18,13 @@ export type SessionPayload = {
   role: "tourist" | "merchant" | "admin";
 };
 
+export type CouponValidationPayload = {
+  type: "coupon_validation";
+  sub: string;
+  couponId: string;
+  establishmentId: string;
+};
+
 // Hash a raw password before storing it in the database.
 export async function hashPassword(password: string) {
   return bcrypt.hash(password, 10);
@@ -36,4 +43,18 @@ export function signSession(payload: SessionPayload) {
 // Decode and verify the session token.
 export function verifySession(token: string) {
   return jwt.verify(token, getJwtSecret()) as SessionPayload;
+}
+
+// Issues a short-lived token to validate a coupon on site.
+export function signCouponValidationToken(payload: Omit<CouponValidationPayload, "type">) {
+  return jwt.sign({ type: "coupon_validation", ...payload }, getJwtSecret(), { expiresIn: "15m" });
+}
+
+// Verifies the coupon validation token scanned by the merchant.
+export function verifyCouponValidationToken(token: string) {
+  const decoded = jwt.verify(token, getJwtSecret()) as CouponValidationPayload;
+  if (decoded.type !== "coupon_validation") {
+    throw new Error("Invalid coupon token");
+  }
+  return decoded;
 }
