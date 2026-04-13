@@ -57,17 +57,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Benefício já validado neste estabelecimento." }, { status: 409 });
   }
 
-  await dbQuery(
+  const claimResult = await dbQuery(
     `INSERT INTO user_coupons (user_id, coupon_id, used, used_at)
      VALUES ($1, $2, false, null)
      ON CONFLICT (user_id, coupon_id)
-     DO UPDATE SET used = user_coupons.used, used_at = user_coupons.used_at`,
+     DO UPDATE SET used = user_coupons.used, used_at = user_coupons.used_at
+     RETURNING id`,
     [session.sub, couponId]
   );
 
   const token = signCouponValidationToken({
-    sub: session.sub,
-    couponId,
+    claimId: claimResult.rows[0].id,
     establishmentId: couponRow.establishmentId,
   });
 
@@ -75,7 +75,7 @@ export async function POST(req: Request) {
     ok: true,
     token,
     alreadyClaimed: !!existing.rowCount,
-    expiresInMinutes: 10,
+    expiresInMinutes: 30,
     coupon: {
       id: couponRow.id,
       title: couponRow.title,

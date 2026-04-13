@@ -90,6 +90,7 @@ export default function MerchantDashboard() {
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
   const [lastValidation, setLastValidation] = useState<CouponValidationResult | null>(null);
   const [manualCouponToken, setManualCouponToken] = useState("");
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const isMaster = profile?.tipo_usuario === "admin_master";
   const canAccessCommercialPanel = profile?.role === "merchant" || isMaster;
@@ -143,6 +144,7 @@ export default function MerchantDashboard() {
 
   const validateCouponToken = async (token: string) => {
     setIsValidatingCoupon(true);
+    setValidationError(null);
     try {
       const res = await fetch("/api/merchant/coupons/validate", {
         method: "POST",
@@ -165,7 +167,9 @@ export default function MerchantDashboard() {
       });
       setShowScanner(false);
       setManualCouponToken("");
+      setValidationError(null);
     } catch (err: any) {
+      setValidationError(err.message || "QR invalido ou sem permissao para este cupom.");
       toast({
         variant: "destructive",
         title: "Falha na validacao",
@@ -181,7 +185,7 @@ export default function MerchantDashboard() {
   };
 
   const handleManualValidation = async () => {
-    const token = manualCouponToken.trim();
+    const token = manualCouponToken.replace(/\s+/g, "").trim();
     if (!token) return;
     await validateCouponToken(token);
   };
@@ -412,9 +416,9 @@ export default function MerchantDashboard() {
           <div className="relative z-10 space-y-3">
             <Input
               value={manualCouponToken}
-              onChange={(e) => setManualCouponToken(e.target.value)}
+              onChange={(e) => setManualCouponToken(e.target.value.replace(/\s+/g, ""))}
               placeholder="Colar codigo do cupom manualmente"
-              className="bg-black/40 border-white/10 rounded-2xl h-12 text-white text-[10px] uppercase tracking-wide"
+              className="bg-black/40 border-white/10 rounded-2xl h-12 text-white text-[11px] font-mono tracking-[0.08em]"
             />
             <Button
               type="button"
@@ -425,6 +429,12 @@ export default function MerchantDashboard() {
             >
               Validar Codigo Manual
             </Button>
+            {validationError && (
+              <div className="rounded-[1.5rem] border border-red-500/20 bg-red-950/20 px-4 py-3 text-left">
+                <p className="text-[9px] font-black uppercase tracking-widest text-red-300">Falha na validacao</p>
+                <p className="mt-1 text-xs leading-relaxed text-red-100/90">{validationError}</p>
+              </div>
+            )}
           </div>
         </Card>
 
@@ -509,16 +519,16 @@ export default function MerchantDashboard() {
               <div className="text-center py-10 text-white/30 text-xs">Nenhum estabelecimento ativo</div>
             ) : (
               activeEstablishments.map((est) => (
-                <div key={est.id} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
-                  <div>
+                <div key={est.id} className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
                     <p className="text-sm font-black text-white">{est.name}</p>
                     <p className="text-[9px] text-white/40 uppercase">{est.category || "Sem categoria"}</p>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" className="border-white/10 text-white/60" onClick={() => handleEditEst(est)}>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Button variant="outline" className="justify-center border-white/10 text-white/60" onClick={() => handleEditEst(est)}>
                       <Pencil className="w-4 h-4 mr-2" /> Editar
                     </Button>
-                    <Button variant="outline" className="border-white/10 text-white/50" onClick={() => handleDeactivateEst(est.id)}>
+                    <Button variant="outline" className="justify-center border-white/10 text-white/50" onClick={() => handleDeactivateEst(est.id)}>
                       <Power className="w-4 h-4 mr-2" /> Desativar
                     </Button>
                   </div>
@@ -538,12 +548,12 @@ export default function MerchantDashboard() {
               <div className="text-center py-10 text-white/30 text-xs">Nenhum estabelecimento desativado</div>
             ) : (
               inactiveEstablishments.map((est) => (
-                <div key={est.id} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
-                  <div>
+                <div key={est.id} className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
                     <p className="text-sm font-black text-white">{est.name}</p>
                     <p className="text-[9px] text-white/40 uppercase">{est.category || "Sem categoria"}</p>
                   </div>
-                  <Button variant="outline" className="border-white/10 text-white/50" onClick={() => handleReactivateEst(est.id)}>
+                  <Button variant="outline" className="justify-center border-white/10 text-white/50 sm:w-auto" onClick={() => handleReactivateEst(est.id)}>
                     <RotateCcw className="w-4 h-4 mr-2" /> Reativar
                   </Button>
                 </div>
@@ -614,16 +624,16 @@ export default function MerchantDashboard() {
               <div className="text-center py-10 text-white/30 text-xs">Nenhum cupom ativo</div>
             ) : (
               activeCoupons.map((coupon) => (
-                <div key={coupon.id} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl px-4 py-3 gap-4">
-                  <div>
+                <div key={coupon.id} className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
                     <p className="text-sm font-black text-white">{coupon.title}</p>
-                    <p className="text-[9px] text-white/40 uppercase">{coupon.establishmentName} • {coupon.discount}</p>
+                    <p className="text-[9px] text-white/40 uppercase break-words">{coupon.establishmentName} • {coupon.discount}</p>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" className="border-white/10 text-white/60" onClick={() => handleEditCoupon(coupon)}>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Button variant="outline" className="justify-center border-white/10 text-white/60" onClick={() => handleEditCoupon(coupon)}>
                       <Pencil className="w-4 h-4 mr-2" /> Editar
                     </Button>
-                    <Button variant="outline" className="border-white/10 text-white/50" onClick={() => handleDeactivateCoupon(coupon.id)}>
+                    <Button variant="outline" className="justify-center border-white/10 text-white/50" onClick={() => handleDeactivateCoupon(coupon.id)}>
                       <Power className="w-4 h-4 mr-2" /> Desativar
                     </Button>
                   </div>
@@ -643,12 +653,12 @@ export default function MerchantDashboard() {
               <div className="text-center py-10 text-white/30 text-xs">Nenhum cupom desativado</div>
             ) : (
               inactiveCoupons.map((coupon) => (
-                <div key={coupon.id} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl px-4 py-3 gap-4">
-                  <div>
+                <div key={coupon.id} className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
                     <p className="text-sm font-black text-white">{coupon.title}</p>
-                    <p className="text-[9px] text-white/40 uppercase">{coupon.establishmentName} • {coupon.discount}</p>
+                    <p className="text-[9px] text-white/40 uppercase break-words">{coupon.establishmentName} • {coupon.discount}</p>
                   </div>
-                  <Button variant="outline" className="border-white/10 text-white/50" onClick={() => handleReactivateCoupon(coupon.id)}>
+                  <Button variant="outline" className="justify-center border-white/10 text-white/50 sm:w-auto" onClick={() => handleReactivateCoupon(coupon.id)}>
                     <RotateCcw className="w-4 h-4 mr-2" /> Reativar
                   </Button>
                 </div>

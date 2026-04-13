@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Camera, Loader2, ShieldAlert, X, Zap } from "lucide-react";
-import { Html5Qrcode } from "html5-qrcode";
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
 interface QRScannerProps {
-  onScan: (code: string) => void;
+  onScan: (code: string) => void | Promise<void>;
   onClose: () => void;
   targetName: string;
   demoMode: boolean;
@@ -30,9 +30,10 @@ export function QRScanner({
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [scanning, setScanning] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isHandlingScanRef = useRef(false);
-  const scanRegionId = "qr-reader-region";
+  const scanRegionId = useId().replace(/:/g, "");
 
   useEffect(() => {
     let isMounted = true;
@@ -43,25 +44,29 @@ export function QRScanner({
         const cameras = await Html5Qrcode.getCameras();
         if (isMounted && cameras && cameras.length > 0) {
           setHasCameraPermission(true);
+          setCameraError(null);
           const html5QrCode = new Html5Qrcode(scanRegionId);
           scannerRef.current = html5QrCode;
+          const preferredCamera =
+            cameras.find((camera) => /back|rear|traseira|environment/i.test(camera.label)) ?? cameras[0];
 
           fallbackTimer = setTimeout(() => {
             if (isMounted) {
               setIsInitializing(false);
             }
-          }, 2500);
+          }, 1800);
 
           await html5QrCode.start(
-            { facingMode: "environment" },
+            preferredCamera.id,
             {
               fps: 10,
               aspectRatio: 1,
-              qrbox: { width: 220, height: 220 },
-            },
+              qrbox: { width: 240, height: 240 },
+              formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+            } as any,
             (decodedText) => {
               if (isMounted && !isHandlingScanRef.current) {
-                handleScanSuccess(decodedText.trim());
+                void handleScanSuccess(decodedText.trim());
               }
             },
             () => {}
@@ -75,11 +80,13 @@ export function QRScanner({
         } else if (isMounted) {
           setHasCameraPermission(false);
           setIsInitializing(false);
+          setCameraError("Nenhuma camera disponivel neste dispositivo.");
         }
       } catch {
         if (isMounted) {
           setHasCameraPermission(false);
           setIsInitializing(false);
+          setCameraError("Nao foi possivel iniciar a camera. Tente usar o codigo manual.");
         }
       }
     };
@@ -91,54 +98,68 @@ export function QRScanner({
       if (fallbackTimer) {
         clearTimeout(fallbackTimer);
       }
-      if (scannerRef.current && scannerRef.current.isScanning) {
-        scannerRef.current.stop().catch(() => {});
+      if (scannerRef.current) {
+        const scanner = scannerRef.current;
+        if (scanner.isScanning) {
+          scanner.stop().catch(() => {});
+        }
+        try {
+          scanner.clear();
+        } catch {}
       }
     };
   }, []);
 
-  const handleScanSuccess = (decodedText: string) => {
+  const handleScanSuccess = async (decodedText: string) => {
     isHandlingScanRef.current = true;
     setScanning(true);
+    setIsInitializing(false);
     if (typeof navigator !== "undefined" && navigator.vibrate) {
       navigator.vibrate(100);
     }
-    onScan(decodedText);
-    setTimeout(() => {
-      isHandlingScanRef.current = false;
-      if (!isInitializing) {
+    try {
+      await onScan(decodedText);
+    } finally {
+      setTimeout(() => {
+        isHandlingScanRef.current = false;
         setScanning(false);
-      }
-    }, 2000);
+      }, 900);
+    }
   };
 
   const handleDemoBypass = () => {
-    handleScanSuccess(targetId === "any" ? "demo_success" : targetId);
+    void handleScanSuccess(targetId === "any" ? "demo_success" : targetId);
   };
 
   return (
     <div className="fixed inset-0 z-[100] overflow-y-auto bg-black/98 backdrop-blur-2xl">
-      <div className="sticky top-0 z-20 flex items-center justify-between border-b border-white/5 bg-black/70 p-4 backdrop-blur-xl sm:p-6">
-        <div className="flex items-center gap-3 sm:gap-4">
+      <div className="sticky top-0 z-20 border-b border-white/5 bg-black/70 p-4 backdrop-blur-xl sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3 sm:gap-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex shrink-0 items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white/60 transition-colors hover:text-white"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Voltar
+            </button>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
+              <Camera className="h-5 w-5 text-white/60" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="leading-none text-lg font-black uppercase tracking-tighter text-white italic sm:text-xl">{title}</h2>
+              <p className="mt-1 text-[9px] font-bold uppercase tracking-widest text-white/40">Escaneando: {targetName}</p>
+            </div>
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white/60 transition-colors hover:text-white"
+            className="hidden items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-2 text-white/40 transition-colors hover:text-white sm:inline-flex"
           >
-            <ArrowLeft className="h-4 w-4" />
-            Voltar
+            <X className="h-5 w-5" />
           </button>
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
-            <Camera className="h-5 w-5 text-white/60" />
-          </div>
-          <div>
-            <h2 className="leading-none text-lg font-black uppercase tracking-tighter text-white italic sm:text-xl">{title}</h2>
-            <p className="mt-1 text-[9px] font-bold uppercase tracking-widest text-white/40">Escaneando: {targetName}</p>
-          </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose} className="rounded-2xl text-white/40 hover:text-white">
-          <X className="h-6 w-6" />
-        </Button>
       </div>
 
       <div className="relative mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-5xl flex-col items-center justify-center p-6 sm:p-8">
@@ -152,18 +173,20 @@ export function QRScanner({
           {(scanning || isInitializing) && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/80">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="mt-4 text-[9px] font-black uppercase tracking-widest text-white">Iniciando lente...</p>
+              <p className="mt-4 text-[9px] font-black uppercase tracking-widest text-white">
+                {scanning ? "Validando cupom..." : "Iniciando lente..."}
+              </p>
             </div>
           )}
         </div>
 
         <div className="mt-8 flex w-full max-w-sm flex-col items-center gap-6 pb-10">
-          {hasCameraPermission === false && !demoMode && (
+          {(hasCameraPermission === false || cameraError) && !demoMode && (
             <Alert variant="destructive" className="rounded-3xl border-red-500/20 bg-red-950/20">
               <ShieldAlert className="mb-2 h-5 w-5" />
-              <AlertTitle className="text-xs font-black uppercase text-white">Camera nao detectada</AlertTitle>
+              <AlertTitle className="text-xs font-black uppercase text-white">Falha ao abrir camera</AlertTitle>
               <AlertDescription className="text-[10px] text-white/50">
-                Permita o acesso a camera nas configuracoes do seu navegador ou dispositivo.
+                {cameraError || "Permita o acesso a camera nas configuracoes do seu navegador ou dispositivo."}
               </AlertDescription>
             </Alert>
           )}

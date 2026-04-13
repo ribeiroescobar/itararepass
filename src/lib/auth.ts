@@ -27,8 +27,9 @@ type CompactCouponValidationPayload = {
 };
 
 export type CouponValidationPayload = {
-  sub: string;
-  couponId: string;
+  claimId?: string;
+  sub?: string;
+  couponId?: string;
   establishmentId: string;
 };
 
@@ -53,6 +54,27 @@ function signCouponParts(parts: CompactCouponValidationPayload) {
   return createHmac("sha256", getJwtSecret()).update(payload).digest("base64url").slice(0, 22);
 }
 
+function toUpperHexUuid(uuid: string) {
+  const normalized = uuid.replace(/-/g, "");
+  if (!/^[0-9a-fA-F]{32}$/.test(normalized)) {
+    throw new Error("Invalid UUID");
+  }
+  return normalized.toUpperCase();
+}
+
+function fromUpperHexUuid(value: string) {
+  const normalized = value.trim().toUpperCase();
+  if (!/^[0-9A-F]{32}$/.test(normalized)) {
+    throw new Error("Invalid hex UUID");
+  }
+  return `${normalized.slice(0, 8)}-${normalized.slice(8, 12)}-${normalized.slice(12, 16)}-${normalized.slice(16, 20)}-${normalized.slice(20)}`.toLowerCase();
+}
+
+function signCouponPartsV2(parts: { u: string; e: string; x: string }) {
+  const payload = `${parts.u}.${parts.e}.${parts.x}`;
+  return createHmac("sha256", getJwtSecret()).update(payload).digest("hex").slice(0, 16).toUpperCase();
+}
+
 // Hash a raw password before storing it in the database.
 export async function hashPassword(password: string) {
   return bcrypt.hash(password, 10);
@@ -74,24 +96,47 @@ export function verifySession(token: string) {
 }
 
 // Issues a short-lived token to validate a coupon on site.
-export function signCouponValidationToken(payload: Omit<CouponValidationPayload, "type">) {
-  const compactPayload: CompactCouponValidationPayload = {
-    s: toCompactUuid(payload.sub),
-    c: toCompactUuid(payload.couponId),
-    e: toCompactUuid(payload.establishmentId),
-    x: (Math.floor(Date.now() / 1000) + 60 * 10).toString(36),
+export function signCouponValidationToken(payload: { claimId: string; establishmentId: string }) {
+  const compactPayload = {
+    u: toUpperHexUuid(payload.claimId),
+    e: toUpperHexUuid(payload.establishmentId),
+    x: (Math.floor(Date.now() / 1000) + 60 * 30).toString(36).toUpperCase(),
   };
-  const signature = signCouponParts(compactPayload);
-  return `cv.${compactPayload.s}.${compactPayload.c}.${compactPayload.e}.${compactPayload.x}.${signature}`;
+  const signature = signCouponPartsV2(compactPayload);
+  return `CV.${compactPayload.u}.${compactPayload.e}.${compactPayload.x}.${signature}`;
 }
 
 // Verifies the coupon validation token scanned by the merchant.
 export function verifyCouponValidationToken(token: string) {
-  const [version, s, c, e, x, signature] = token.split(".");
-  if (version !== "cv" || !s || !c || !e || !x || !signature) {
-    throw new Error("Invalid coupon token");
+  const normalizedToken = token.trim().replace(/\s+/g, "");
+  const parts = normalizedToken.split(".");
+
+  if (parts.length === 5) {
+    const [version, u, e, x, signature] = parts;
+    if (version.toUpperCase() !== "CV" || !u || !e || !x || !signature) {
+      throw new Error("Invalid coupon token");
+    }
+
+    const expectedSignature = signCouponPartsV2({ u: u.toUpperCase(), e: e.toUpperCase(), x: x.toUpperCase() });
+    if (signature.toUpperCase() !== expectedSignature) {
+      throw new Error("Invalid coupon signature");
+    }
+
+    const expiresAt = parseInt(x, 36);
+    if (!Number.isFinite(expiresAt) || expiresAt <= Math.floor(Date.now() / 1000)) {
+      throw new Error("Expired coupon token");
+    }
+
+    return {
+      claimId: fromUpperHexUuid(u),
+      establishmentId: fromUpperHexUuid(e),
+    };
   }
 
+  const [version, s, c, e, x, signature] = parts;
+  if (version?.toLowerCase() !== "cv" || !s || !c || !e || !x || !signature) {
+    throw new Error("Invalid coupon token");
+  }
   const expectedSignature = signCouponParts({ s, c, e, x });
   const receivedBuffer = Buffer.from(signature);
   const expectedBuffer = Buffer.from(expectedSignature);
