@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Info, ShieldCheck, Sparkles, Tag, Wallet } from "lucide-react";
+import { ArrowLeft, Info, ShieldCheck, Sparkles, Tag, Wallet } from "lucide-react";
 import { CouponCard } from "@/components/CouponCard";
 import { BottomNav } from "@/components/BottomNav";
 import { Toaster } from "@/components/ui/toaster";
@@ -29,7 +29,7 @@ type ActiveCouponQr = {
 };
 
 export default function CouponsPage() {
-  const { coupons, useCoupon, t, user, profile, isUserLoading } = useItarare();
+  const { coupons, useCoupon, t, user, profile, isUserLoading, language } = useItarare();
   const router = useRouter();
   const [activeQr, setActiveQr] = useState<ActiveCouponQr | null>(null);
 
@@ -57,7 +57,7 @@ export default function CouponsPage() {
       toast({
         variant: "destructive",
         title: t("coupon_qr_error"),
-        description: err?.message || "Erro ao gerar QR do benefício.",
+        description: err?.message || "Erro ao gerar QR do beneficio.",
       });
     }
   };
@@ -121,10 +121,19 @@ export default function CouponsPage() {
       </main>
 
       <Dialog open={!!activeQr} onOpenChange={(open) => !open && setActiveQr(null)}>
-        <DialogContent className="w-[calc(100%-2rem)] max-w-md rounded-[2rem] border border-white/10 bg-[#0f1f18] p-0 text-white shadow-2xl">
+        <DialogContent className="max-h-[90vh] w-[calc(100%-1.5rem)] overflow-y-auto rounded-[2rem] border border-white/10 bg-[#0f1f18] p-0 text-white shadow-2xl">
           {activeQr && (
             <div className="overflow-hidden rounded-[2rem]">
               <div className="border-b border-white/10 bg-white/5 px-6 py-5">
+                <button
+                  type="button"
+                  onClick={() => setActiveQr(null)}
+                  className="mb-4 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/50 transition-colors hover:text-white"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  {language === "en" ? "Back" : "Voltar"}
+                </button>
+
                 <DialogHeader className="space-y-2 text-left">
                   <DialogTitle className="text-xl font-black uppercase tracking-tight text-white">
                     {t("coupon_qr_title")}
@@ -138,9 +147,9 @@ export default function CouponsPage() {
               <div className="space-y-5 px-6 py-6">
                 <div className="rounded-[1.75rem] border border-primary/20 bg-black/30 p-5 text-center">
                   <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(activeQr.token)}`}
-                    alt="QR do benefício"
-                    className="mx-auto h-64 w-64 rounded-2xl bg-white p-3 shadow-xl"
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=420x420&qzone=2&data=${encodeURIComponent(activeQr.token)}`}
+                    alt={language === "en" ? "Reward QR code" : "QR do beneficio"}
+                    className="mx-auto h-[min(78vw,320px)] w-[min(78vw,320px)] rounded-2xl bg-white p-3 shadow-xl"
                   />
                 </div>
 

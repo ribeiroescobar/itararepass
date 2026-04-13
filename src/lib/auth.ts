@@ -18,8 +18,14 @@ export type SessionPayload = {
   role: "tourist" | "merchant" | "admin";
 };
 
+type CompactCouponValidationPayload = {
+  t: "cv";
+  s: string;
+  c: string;
+  e: string;
+};
+
 export type CouponValidationPayload = {
-  type: "coupon_validation";
   sub: string;
   couponId: string;
   establishmentId: string;
@@ -47,14 +53,29 @@ export function verifySession(token: string) {
 
 // Issues a short-lived token to validate a coupon on site.
 export function signCouponValidationToken(payload: Omit<CouponValidationPayload, "type">) {
-  return jwt.sign({ type: "coupon_validation", ...payload }, getJwtSecret(), { expiresIn: "15m" });
+  const compactPayload: CompactCouponValidationPayload = {
+    t: "cv",
+    s: payload.sub,
+    c: payload.couponId,
+    e: payload.establishmentId,
+  };
+
+  return jwt.sign(compactPayload, getJwtSecret(), {
+    expiresIn: "10m",
+    noTimestamp: true,
+  });
 }
 
 // Verifies the coupon validation token scanned by the merchant.
 export function verifyCouponValidationToken(token: string) {
-  const decoded = jwt.verify(token, getJwtSecret()) as CouponValidationPayload;
-  if (decoded.type !== "coupon_validation") {
+  const decoded = jwt.verify(token, getJwtSecret()) as CompactCouponValidationPayload;
+  if (decoded.t !== "cv") {
     throw new Error("Invalid coupon token");
   }
-  return decoded;
+
+  return {
+    sub: decoded.s,
+    couponId: decoded.c,
+    establishmentId: decoded.e,
+  };
 }

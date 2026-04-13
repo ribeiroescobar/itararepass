@@ -75,7 +75,7 @@ export async function POST(req: Request) {
     ok: true,
     token,
     alreadyClaimed: !!existing.rowCount,
-    expiresInMinutes: 15,
+    expiresInMinutes: 10,
     coupon: {
       id: couponRow.id,
       title: couponRow.title,
