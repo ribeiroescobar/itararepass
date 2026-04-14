@@ -146,7 +146,7 @@ export default function ExplorePage() {
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-500/15 text-blue-300">
                 <CalendarDays className="h-5 w-5" />
               </div>
-              <p className="mt-4 text-[10px] font-black uppercase tracking-widest text-blue-300">{t("events")}</p>
+              <p className="mt-4 text-[10px] font-black uppercase tracking-widest text-blue-300">Eventos</p>
               <p className="mt-1 text-xs leading-relaxed text-white/65">
                 {language === "en" ? "Open the city events carousel." : "Abrir o carrossel de eventos da cidade."}
               </p>
@@ -158,7 +158,7 @@ export default function ExplorePage() {
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-red-500/15 text-red-300">
                 <ShieldAlert className="h-5 w-5" />
               </div>
-              <p className="mt-4 text-[10px] font-black uppercase tracking-widest text-red-300">{t("sos")}</p>
+              <p className="mt-4 text-[10px] font-black uppercase tracking-widest text-red-300">SOS</p>
               <p className="mt-1 text-xs leading-relaxed text-white/65">
                 {language === "en" ? "Call emergency support now." : "Ligar agora para o atendimento de emergencia."}
               </p>
