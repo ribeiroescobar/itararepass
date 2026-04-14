@@ -142,7 +142,7 @@ export default function ExplorePage() {
 
         <div className="mt-5 grid w-full max-w-sm grid-cols-2 gap-3">
           <Link href="/events" className="group">
-            <div className="rounded-[2rem] border border-blue-500/20 bg-gradient-to-br from-blue-500/14 to-sky-500/8 p-5 text-left shadow-xl transition-all active:scale-95 group-hover:bg-blue-500/15 min-h-[136px] flex flex-col justify-between">
+            <div className="rounded-[2rem] border border-blue-500/20 bg-gradient-to-br from-blue-500/14 to-sky-500/8 p-5 text-center shadow-xl transition-all active:scale-95 group-hover:bg-blue-500/15 min-h-[136px] flex flex-col items-center justify-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/15 text-blue-300">
                 <CalendarDays className="h-5 w-5" />
               </div>
@@ -151,7 +151,7 @@ export default function ExplorePage() {
           </Link>
 
           <a href={`tel:${primaryEmergencyPhone}`} className="group">
-            <div className="rounded-[2rem] border border-red-500/20 bg-gradient-to-br from-red-500/14 to-orange-500/8 p-5 text-left shadow-xl transition-all active:scale-95 group-hover:bg-red-500/15 min-h-[136px] flex flex-col justify-between">
+            <div className="rounded-[2rem] border border-red-500/20 bg-gradient-to-br from-red-500/14 to-orange-500/8 p-5 text-center shadow-xl transition-all active:scale-95 group-hover:bg-red-500/15 min-h-[136px] flex flex-col items-center justify-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/15 text-red-300">
                 <ShieldAlert className="h-5 w-5" />
               </div>
