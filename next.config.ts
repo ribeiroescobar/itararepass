@@ -1,7 +1,10 @@
 
 import type {NextConfig} from 'next';
 
+const isMobileExportBuild = process.env.CAP_BUILD === "1";
+
 const nextConfig: NextConfig = {
+  output: isMobileExportBuild ? "export" : undefined,
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -9,6 +12,7 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
+    unoptimized: isMobileExportBuild,
     remotePatterns: [
       {
         protocol: 'https',

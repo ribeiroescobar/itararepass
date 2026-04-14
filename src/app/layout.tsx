@@ -4,6 +4,8 @@ import './globals.css';
 import { ItarareProvider } from '@/hooks/use-itarare';
 import { AccessibilityMenu } from '@/components/AccessibilityMenu';
 import { Toaster } from "@/components/ui/toaster";
+import { ClientRuntimeBridge } from "@/components/ClientRuntimeBridge";
+import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 
 export const metadata: Metadata = {
   title: 'Itararé Pass - Explore e Ganhe!',
@@ -40,6 +42,8 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased bg-[#0d1a14] min-h-full">
         <ItarareProvider>
+          <ClientRuntimeBridge />
+          <ServiceWorkerRegistration />
           <AccessibilityMenu />
           <Toaster />
           <div className="w-full min-h-screen relative bg-background mx-auto flex flex-col items-center">

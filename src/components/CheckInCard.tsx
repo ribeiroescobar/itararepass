@@ -11,6 +11,7 @@ import {
   Sparkles,
   ShieldCheck,
   Navigation,
+  Clock3,
   MessageSquare,
   Star,
   Volume2,
@@ -42,7 +43,7 @@ interface CheckInCardProps {
 
 export function CheckInCard({ spot, onCheckIn, userLocation }: CheckInCardProps) {
   const router = useRouter();
-  const { user, startNavigation, t, language, demoMode } = useItarare();
+  const { user, startNavigation, t, language, demoMode, registerOfflineCheckIn } = useItarare();
   const [loading, setLoading] = useState(false);
   const [loadingAudio, setLoadingAudio] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
@@ -81,11 +82,13 @@ export function CheckInCard({ spot, onCheckIn, userLocation }: CheckInCardProps)
     try {
       let insightResult = "";
       try {
+        const trustedSnippet = t(`${spot.id}_snippet`);
         const result = await generateLocationInsight({
           locationName: spot.name,
+          sourceSnippet: spot.historicalSnippet || trustedSnippet,
           language,
         });
-        insightResult = result.insight || t(`${spot.id}_snippet`);
+        insightResult = result.insight || trustedSnippet;
       } catch {
         insightResult = t(`${spot.id}_snippet`);
       }
@@ -99,26 +102,32 @@ export function CheckInCard({ spot, onCheckIn, userLocation }: CheckInCardProps)
     }
   };
 
+  const queueOfflineCheckIn = async (code: string) => {
+    const trustedSnippet = spot.historicalSnippet || t(`${spot.id}_snippet`);
+
+    await registerOfflineCheckIn({
+      spotId: spot.id,
+      token: code,
+      insight: trustedSnippet,
+      language,
+      spotName: spot.name,
+      location: userLocation,
+      demoMode,
+    });
+
+    toast({
+      title: "Check-in salvo offline",
+      description: "A leitura da placa foi guardada no aparelho e sera validada quando a internet voltar.",
+    });
+    setShowScanner(false);
+  };
+
   const handleQRScanSuccess = (code: string) => {
     void (async () => {
-      if (demoMode && code === "demo_success") {
-        await completeCheckIn();
-        setShowScanner(false);
-        return;
-      }
+      const expectedOfflinePrefix = `SPOT.${spot.id}.`;
+      const isOfficialSpotToken = code.startsWith(expectedOfflinePrefix);
 
       try {
-        const verifyRes = await fetch("/api/checkins/verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token: code, spotId: spot.id }),
-        });
-        const verifyData = await verifyRes.json().catch(() => null);
-
-        if (!verifyRes.ok) {
-          throw new Error(verifyData?.error || t("incorrect_token"));
-        }
-
         if (!demoMode) {
           if (!userLocation) {
             toast({ variant: "destructive", title: "GPS Indisponivel" });
@@ -133,10 +142,54 @@ export function CheckInCard({ spot, onCheckIn, userLocation }: CheckInCardProps)
           }
         }
 
+        const isOffline = typeof window !== "undefined" && !window.navigator.onLine;
+        const canQueueOffline = code === "demo_success" || isOfficialSpotToken;
+
+        if (isOffline && canQueueOffline) {
+          await queueOfflineCheckIn(code);
+          return;
+        }
+
+        if (isOffline && !canQueueOffline) {
+          toast({
+            variant: "destructive",
+            title: "QR nao corresponde a esta placa",
+            description: "Leia o QR oficial do proprio local para guardar o check-in offline.",
+          });
+          return;
+        }
+
+        if (demoMode && code === "demo_success") {
+          await completeCheckIn();
+          setShowScanner(false);
+          return;
+        }
+
+        const verifyRes = await fetch("/api/checkins/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: code, spotId: spot.id }),
+        });
+        const verifyData = await verifyRes.json().catch(() => null);
+
+        if (!verifyRes.ok) {
+          throw new Error(verifyData?.error || t("incorrect_token"));
+        }
+
         await completeCheckIn();
         setShowScanner(false);
       } catch (err: any) {
-        toast({ title: err?.message || t("incorrect_token"), variant: "destructive" });
+        const message = err?.message || t("incorrect_token");
+        const isNetworkError =
+          typeof message === "string" &&
+          (message.toLowerCase().includes("failed to fetch") || message.toLowerCase().includes("network"));
+
+        if (isNetworkError && (code === "demo_success" || isOfficialSpotToken)) {
+          await queueOfflineCheckIn(code);
+          return;
+        }
+
+        toast({ title: message, variant: "destructive" });
       }
     })();
   };
@@ -270,6 +323,10 @@ export function CheckInCard({ spot, onCheckIn, userLocation }: CheckInCardProps)
             {spot.visited ? (
               <Button className="h-12 w-full cursor-default rounded-2xl border border-green-500/30 bg-green-600/20 text-[10px] font-black uppercase text-green-500">
                 <ShieldCheck className="mr-2 w-3.5 h-3.5" /> {t("verified_visitor")}
+              </Button>
+            ) : spot.pendingSync ? (
+              <Button className="h-12 w-full cursor-default rounded-2xl border border-amber-500/30 bg-amber-500/10 text-[10px] font-black uppercase text-amber-300">
+                <Clock3 className="mr-2 w-3.5 h-3.5" /> Aguardando sincronizacao
               </Button>
             ) : (
               <Button

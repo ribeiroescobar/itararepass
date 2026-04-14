@@ -1,22 +1,22 @@
 {
-  "name": "Itararé Pass",
-  "short_name": "ItararéPass",
-  "description": "Explore Itararé e ganhe recompensas.",
+  "name": "Itarare Pass",
+  "short_name": "ItararePass",
+  "description": "Explore Itarare e ganhe recompensas.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0d2a1f",
   "theme_color": "#f97316",
   "icons": [
     {
-      "src": "https://picsum.photos/seed/itarare-icon/192/192",
+      "src": "/logo.jpeg",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/jpeg",
       "purpose": "any maskable"
     },
     {
-      "src": "https://picsum.photos/seed/itarare-icon/512/512",
+      "src": "/logo.jpeg",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/jpeg",
       "purpose": "any maskable"
     }
   ]

@@ -3,6 +3,21 @@
 import React, { createContext, useContext, useState, useMemo, useCallback, useEffect } from "react";
 import { INITIAL_SPOTS, INITIAL_COUPONS, TRANSLATIONS, Language, SpotType } from "@/lib/constants";
 import { useItarareAuth } from "./use-auth";
+import {
+  buildOfflineUserKey,
+  createPendingOfflineCheckInId,
+  PendingOfflineCheckIn,
+  readCachedBaseCoupons,
+  readCachedBaseSpots,
+  readCachedUserCheckins,
+  readCachedUserCoupons,
+  readPendingOfflineCheckins,
+  writeCachedBaseCoupons,
+  writeCachedBaseSpots,
+  writeCachedUserCheckins,
+  writeCachedUserCoupons,
+  writePendingOfflineCheckins,
+} from "@/lib/offline-cache";
 
 export interface TouristSpot {
   id: string;
@@ -19,6 +34,7 @@ export interface TouristSpot {
   averageRating: number;
   userRating?: number;
   cityId: string;
+  pendingSync?: boolean;
 }
 
 export interface Coupon {
@@ -61,10 +77,22 @@ interface BusinessContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
   checkIn: (spotId: string, insight?: string, lang?: string) => Promise<void>;
+  registerOfflineCheckIn: (input: {
+    spotId: string;
+    token: string;
+    insight: string;
+    language: string;
+    spotName?: string;
+    location?: { lat: number; lng: number } | null;
+    demoMode?: boolean;
+  }) => Promise<void>;
   rateSpot: (spotId: string, rating: number) => Promise<void>;
   useCoupon: (id: string) => Promise<CouponClaimResult | undefined>;
   addComment: (spotId: string, text: string, photo?: string, rating?: number) => Promise<void>;
   refreshUserProgress: () => Promise<void>;
+  pendingCheckinsCount: number;
+  isOfflineMode: boolean;
+  isSyncingPendingCheckins: boolean;
   t: (key: string) => string;
 }
 
@@ -135,6 +163,14 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
   const [userCoupons, setUserCoupons] = useState<any[]>([]);
   const [baseSpots, setBaseSpots] = useState<ApiSpot[]>([]);
   const [baseCoupons, setBaseCoupons] = useState<ApiCoupon[]>([]);
+  const [pendingOfflineCheckins, setPendingOfflineCheckins] = useState<PendingOfflineCheckIn[]>([]);
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
+  const [isSyncingPendingCheckins, setIsSyncingPendingCheckins] = useState(false);
+
+  const offlineUserKey = useMemo(
+    () => buildOfflineUserKey({ uid: profile?.uid, email: profile?.email || user?.email, id: user?.uid }),
+    [profile?.uid, profile?.email, user?.email, user?.uid]
+  );
 
   const t = useCallback(
     (key: string) => {
@@ -142,6 +178,23 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
     },
     [language]
   );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const updateOnlineStatus = () => {
+      setIsOfflineMode(!window.navigator.onLine);
+    };
+
+    updateOnlineStatus();
+    window.addEventListener("online", updateOnlineStatus);
+    window.addEventListener("offline", updateOnlineStatus);
+
+    return () => {
+      window.removeEventListener("online", updateOnlineStatus);
+      window.removeEventListener("offline", updateOnlineStatus);
+    };
+  }, []);
 
   // Prefer translation keys when available, fallback to database/seed values.
   const translateOrFallback = useCallback(
@@ -168,30 +221,51 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
     if (!user) {
       setUserCheckins([]);
       setUserCoupons([]);
+      setPendingOfflineCheckins([]);
       return;
     }
 
+    const cachedCheckins = readCachedUserCheckins<any>(offlineUserKey);
+    const cachedCoupons = readCachedUserCoupons<any>(offlineUserKey);
+    const cachedPending = readPendingOfflineCheckins(offlineUserKey);
+
     const [checkinsData, couponsData] = await Promise.all([
-      fetchJson<{ checkins: any[] }>("/api/checkins").catch(() => ({ checkins: [] })),
-      fetchJson<{ coupons: any[] }>("/api/coupons").catch(() => ({ coupons: [] })),
+      fetchJson<{ checkins: any[] }>("/api/checkins").catch(() => ({ checkins: cachedCheckins })),
+      fetchJson<{ coupons: any[] }>("/api/coupons").catch(() => ({ coupons: cachedCoupons })),
     ]);
 
-    setUserCheckins(checkinsData.checkins || []);
-    setUserCoupons(couponsData.coupons || []);
-  }, [user]);
+    const nextCheckins = checkinsData.checkins || [];
+    const nextCoupons = couponsData.coupons || [];
+    const nextPending = cachedPending.filter(
+      (item) => !nextCheckins.some((checkin) => checkin.spotId === item.spotId)
+    );
+
+    setUserCheckins(nextCheckins);
+    setUserCoupons(nextCoupons);
+    setPendingOfflineCheckins(nextPending);
+    writeCachedUserCheckins(offlineUserKey, nextCheckins);
+    writeCachedUserCoupons(offlineUserKey, nextCoupons);
+    writePendingOfflineCheckins(offlineUserKey, nextPending);
+  }, [user, offlineUserKey]);
 
   useEffect(() => {
     let active = true;
     if (!user) {
       setUserCheckins([]);
       setUserCoupons([]);
+      setPendingOfflineCheckins([]);
       return;
     }
 
+    setUserCheckins(readCachedUserCheckins<any>(offlineUserKey));
+    setUserCoupons(readCachedUserCoupons<any>(offlineUserKey));
+    setPendingOfflineCheckins(readPendingOfflineCheckins(offlineUserKey));
+
     refreshUserProgress().catch(() => {
       if (!active) return;
-      setUserCheckins([]);
-      setUserCoupons([]);
+      setUserCheckins(readCachedUserCheckins<any>(offlineUserKey));
+      setUserCoupons(readCachedUserCoupons<any>(offlineUserKey));
+      setPendingOfflineCheckins(readPendingOfflineCheckins(offlineUserKey));
     });
 
     const handleFocus = () => {
@@ -207,23 +281,29 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
         window.removeEventListener("focus", handleFocus);
       }
     };
-  }, [user, refreshUserProgress]);
+  }, [user, offlineUserKey, refreshUserProgress]);
 
   const fetchBaseData = useCallback(() => {
     fetchJson<{ spots: ApiSpot[] }>("/api/spots")
       .then((data) => {
-        setBaseSpots(data.spots || []);
+        const nextSpots = data.spots || [];
+        setBaseSpots(nextSpots);
+        writeCachedBaseSpots(nextSpots);
       })
       .catch(() => {
-        setBaseSpots([]);
+        const cachedSpots = readCachedBaseSpots<ApiSpot>();
+        setBaseSpots(cachedSpots);
       });
 
     fetchJson<{ coupons: ApiCoupon[] }>("/api/coupons/catalog")
       .then((data) => {
-        setBaseCoupons(data.coupons || []);
+        const nextCoupons = data.coupons || [];
+        setBaseCoupons(nextCoupons);
+        writeCachedBaseCoupons(nextCoupons);
       })
       .catch(() => {
-        setBaseCoupons([]);
+        const cachedCoupons = readCachedBaseCoupons<ApiCoupon>();
+        setBaseCoupons(cachedCoupons);
       });
   }, []);
 
@@ -240,21 +320,115 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
     };
   }, [fetchBaseData]);
 
+  const registerOfflineCheckIn = useCallback(
+    async (input: {
+      spotId: string;
+      token: string;
+      insight: string;
+      language: string;
+      spotName?: string;
+      location?: { lat: number; lng: number } | null;
+      demoMode?: boolean;
+    }) => {
+      if (!user || !offlineUserKey) return;
+
+      const nextQueue = [
+        ...pendingOfflineCheckins.filter((item) => item.spotId !== input.spotId),
+        {
+          id: createPendingOfflineCheckInId(),
+          spotId: input.spotId,
+          token: input.token,
+          insight: input.insight,
+          language: input.language,
+          scannedAt: Date.now(),
+          spotName: input.spotName,
+          location: input.location ?? null,
+          demoMode: !!input.demoMode,
+        },
+      ];
+
+      setPendingOfflineCheckins(nextQueue);
+      writePendingOfflineCheckins(offlineUserKey, nextQueue);
+    },
+    [offlineUserKey, pendingOfflineCheckins, user]
+  );
+
+  const syncPendingCheckins = useCallback(async () => {
+    if (!user || !offlineUserKey || pendingOfflineCheckins.length === 0) return;
+    if (typeof window !== "undefined" && !window.navigator.onLine) return;
+
+    setIsSyncingPendingCheckins(true);
+    let remainingQueue = [...pendingOfflineCheckins];
+    let hasSyncedAny = false;
+
+    for (const item of pendingOfflineCheckins) {
+      try {
+        if (!item.demoMode) {
+          await fetchJson("/api/checkins/verify", {
+            method: "POST",
+            body: JSON.stringify({ token: item.token, spotId: item.spotId }),
+          });
+        }
+
+        await fetchJson("/api/checkins", {
+          method: "POST",
+          body: JSON.stringify({
+            spotId: item.spotId,
+            insight: item.insight || "",
+            language: item.language || "pt",
+          }),
+        });
+
+        remainingQueue = remainingQueue.filter((queued) => queued.spotId !== item.spotId);
+        hasSyncedAny = true;
+      } catch {
+        continue;
+      }
+    }
+
+    setPendingOfflineCheckins(remainingQueue);
+    writePendingOfflineCheckins(offlineUserKey, remainingQueue);
+
+    if (hasSyncedAny) {
+      await refreshUserProgress().catch(() => undefined);
+    }
+
+    setIsSyncingPendingCheckins(false);
+  }, [offlineUserKey, pendingOfflineCheckins, refreshUserProgress, user]);
+
+  useEffect(() => {
+    void syncPendingCheckins();
+  }, [syncPendingCheckins]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleOnline = () => {
+      void syncPendingCheckins();
+    };
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, [syncPendingCheckins]);
+
   const spots = useMemo(() => {
     const sourceSpots = uniqueById<ApiSpot>((baseSpots.length > 0 ? baseSpots : INITIAL_SPOTS) as ApiSpot[]);
+    const pendingBySpotId = new Map(pendingOfflineCheckins.map((item) => [item.spotId, item]));
+
     return sourceSpots.map((spot) => {
       const visit = userCheckins?.find((c) => c.spotId === spot.id);
+      const pending = pendingBySpotId.get(spot.id);
       return {
         ...spot,
         image: spot.image || "",
         name: translateOrFallback(`${spot.id}_name`, spot.name),
         visited: !!visit,
-        historicalSnippet: visit?.insight || translateOrFallback(`${spot.id}_snippet`, spot.historicalSnippet),
-        insightLanguage: visit?.language || "pt",
+        pendingSync: !visit && !!pending,
+        historicalSnippet:
+          visit?.insight || pending?.insight || translateOrFallback(`${spot.id}_snippet`, spot.historicalSnippet),
+        insightLanguage: visit?.language || pending?.language || "pt",
         userRating: visit?.rating || 0,
       };
     });
-  }, [userCheckins, language, t, baseSpots, translateOrFallback, uniqueById]);
+  }, [userCheckins, baseSpots, translateOrFallback, uniqueById, pendingOfflineCheckins]);
 
   const coupons = useMemo(() => {
     const adventureVisitedCount = spots.filter((s) => s.type === "adventure" && s.visited).length;
@@ -319,7 +493,9 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
     });
 
     const updated = await fetchJson<{ checkins: any[] }>("/api/checkins");
-    setUserCheckins(updated.checkins || []);
+    const nextCheckins = updated.checkins || [];
+    setUserCheckins(nextCheckins);
+    writeCachedUserCheckins(offlineUserKey, nextCheckins);
   };
 
   const rateSpot = async (spotId: string, rating: number) => {
@@ -330,18 +506,25 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
     });
 
     const updated = await fetchJson<{ checkins: any[] }>("/api/checkins");
-    setUserCheckins(updated.checkins || []);
+    const nextCheckins = updated.checkins || [];
+    setUserCheckins(nextCheckins);
+    writeCachedUserCheckins(offlineUserKey, nextCheckins);
   };
 
   const useCoupon = async (couponId: string) => {
     if (!user) return;
+    if (typeof window !== "undefined" && !window.navigator.onLine) {
+      throw new Error("Internet necessaria para gerar o QR do beneficio.");
+    }
     const result = await fetchJson<CouponClaimResult>("/api/coupons/use", {
       method: "POST",
       body: JSON.stringify({ couponId }),
     });
 
     const updated = await fetchJson<{ coupons: any[] }>("/api/coupons");
-    setUserCoupons(updated.coupons || []);
+    const nextCoupons = updated.coupons || [];
+    setUserCoupons(nextCoupons);
+    writeCachedUserCoupons(offlineUserKey, nextCoupons);
     return result;
   };
 
@@ -372,13 +555,17 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
       language,
       setLanguage,
       checkIn,
+      registerOfflineCheckIn,
       rateSpot,
       useCoupon,
       addComment,
       refreshUserProgress,
+      pendingCheckinsCount: pendingOfflineCheckins.length,
+      isOfflineMode,
+      isSyncingPendingCheckins,
       t,
     }),
-    [spots, coupons, language, t, refreshUserProgress]
+    [spots, coupons, language, t, refreshUserProgress, registerOfflineCheckIn, pendingOfflineCheckins.length, isOfflineMode, isSyncingPendingCheckins]
   );
 
   return <BusinessContext.Provider value={value}>{children}</BusinessContext.Provider>;

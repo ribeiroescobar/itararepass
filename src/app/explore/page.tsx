@@ -7,7 +7,7 @@ import { ArcProgress } from "@/components/ArcProgress";
 import { CheckInCard } from "@/components/CheckInCard";
 import { BottomNav } from "@/components/BottomNav";
 import { Toaster } from "@/components/ui/toaster";
-import { Wallet, Tag, ArrowRight, Zap } from "lucide-react";
+import { Wallet, Tag, ArrowRight, Zap, CalendarDays, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
 import { FeaturedMerchants } from "@/components/FeaturedMerchants";
@@ -41,7 +41,11 @@ export default function ExplorePage() {
     isUserLoading,
     t,
     demoMode,
-    setDemoMode
+    setDemoMode,
+    pendingCheckinsCount,
+    isOfflineMode,
+    isSyncingPendingCheckins,
+    emergencyContacts,
   } = useItarare();
   
   useEffect(() => {
@@ -62,6 +66,7 @@ export default function ExplorePage() {
   const unlockedCoupons = coupons.filter(c => !c.locked && !c.used);
   const featuredMerchants = coupons.filter(c => c.isPremium);
   const displayMerchants = featuredMerchants.length > 0 ? featuredMerchants : coupons.slice(0, 5);
+  const primaryEmergencyPhone = emergencyContacts[0]?.phone?.replace(/[^0-9]/g, "") || "193";
 
   return (
     <div className="min-h-screen bg-background pb-32 w-full max-w-full overflow-x-hidden">
@@ -134,6 +139,47 @@ export default function ExplorePage() {
             </div>
           </div>
         </div>
+
+        <div className="mt-5 grid w-full max-w-sm grid-cols-2 gap-3">
+          <Link href="/events" className="group">
+            <div className="rounded-[2rem] border border-blue-500/20 bg-blue-500/10 p-4 text-left shadow-xl transition-all active:scale-95 group-hover:bg-blue-500/15">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-500/15 text-blue-300">
+                <CalendarDays className="h-5 w-5" />
+              </div>
+              <p className="mt-4 text-[10px] font-black uppercase tracking-widest text-blue-300">{t("events")}</p>
+              <p className="mt-1 text-xs leading-relaxed text-white/65">
+                {language === "en" ? "Open the city events carousel." : "Abrir o carrossel de eventos da cidade."}
+              </p>
+            </div>
+          </Link>
+
+          <a href={`tel:${primaryEmergencyPhone}`} className="group">
+            <div className="rounded-[2rem] border border-red-500/20 bg-red-500/10 p-4 text-left shadow-xl transition-all active:scale-95 group-hover:bg-red-500/15">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-red-500/15 text-red-300">
+                <ShieldAlert className="h-5 w-5" />
+              </div>
+              <p className="mt-4 text-[10px] font-black uppercase tracking-widest text-red-300">{t("sos")}</p>
+              <p className="mt-1 text-xs leading-relaxed text-white/65">
+                {language === "en" ? "Call emergency support now." : "Ligar agora para o atendimento de emergencia."}
+              </p>
+            </div>
+          </a>
+        </div>
+
+        {(isOfflineMode || pendingCheckinsCount > 0 || isSyncingPendingCheckins) && (
+          <div className="mt-6 w-full max-w-sm rounded-[2rem] border border-amber-500/20 bg-amber-500/10 px-5 py-4 text-left shadow-xl">
+            <p className="text-[10px] font-black uppercase tracking-widest text-amber-300">
+              {isOfflineMode ? "Modo offline ativo" : isSyncingPendingCheckins ? "Sincronizando leituras" : "Leituras pendentes"}
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-white/70">
+              {isOfflineMode
+                ? "As placas lidas serao guardadas no aparelho e enviadas ao servidor quando a internet voltar."
+                : isSyncingPendingCheckins
+                  ? "O app esta validando no servidor as placas que foram lidas sem internet."
+                  : `${pendingCheckinsCount} leitura(s) de placa aguardando autenticacao com o servidor.`}
+            </p>
+          </div>
+        )}
       </header>
 
       <main className="px-6 space-y-12 w-full max-w-5xl mx-auto">

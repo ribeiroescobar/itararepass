@@ -52,8 +52,8 @@ import {
 import { toast } from "@/hooks/use-toast";
 
 // Simple fetch helper with JSON parsing + error propagation.
-async function fetchJson<T>(url: string): Promise<T> {
-  const res = await fetch(url);
+async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(url, options);
   const data = await res.json().catch(() => null);
   if (!res.ok) {
     const message = data?.error || "Erro inesperado.";
@@ -105,6 +105,9 @@ export default function AdminDashboardPage() {
   const [spotImage, setSpotImage] = useState("");
   const [spotCapacity, setSpotCapacity] = useState("");
   const [spotSnippet, setSpotSnippet] = useState("");
+  const [spotPreviewLanguage, setSpotPreviewLanguage] = useState<"pt" | "en">("pt");
+  const [spotAiPreview, setSpotAiPreview] = useState("");
+  const [isGeneratingSpotPreview, setIsGeneratingSpotPreview] = useState(false);
   const [editSpotId, setEditSpotId] = useState<string | null>(null);
   const [editEstId, setEditEstId] = useState<string | null>(null);
   const [estName, setEstName] = useState("");
@@ -331,6 +334,8 @@ export default function AdminDashboardPage() {
       setSpotImage("");
       setSpotCapacity("");
       setSpotSnippet("");
+      setSpotAiPreview("");
+      setSpotPreviewLanguage("pt");
       setEditSpotId(null);
       refreshData();
       toast({ title: editSpotId ? "Local atualizado!" : "Local cadastrado!" });
@@ -340,7 +345,11 @@ export default function AdminDashboardPage() {
   };
 
   const handleDeactivateSpot = async (id: string) => {
-    await fetch(`/api/admin/spots/${id}`, { method: "DELETE" });
+    await fetch(`/api/admin/spots/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive: false }),
+    });
     refreshData();
   };
 
@@ -363,6 +372,42 @@ export default function AdminDashboardPage() {
     setSpotImage(spot.image || "");
     setSpotCapacity(String(spot.capacity ?? ""));
     setSpotSnippet(spot.historicalSnippet || "");
+    setSpotAiPreview("");
+    setSpotPreviewLanguage("pt");
+  };
+
+  const handlePreviewSpotInsight = async (language: "pt" | "en") => {
+    if (!spotName.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Informe o nome do local",
+        description: "Preencha o nome do local antes de gerar a versao guiada por IA.",
+      });
+      return;
+    }
+
+    setIsGeneratingSpotPreview(true);
+    setSpotPreviewLanguage(language);
+    try {
+      const data = await fetchJson<{ insight: string }>("/api/admin/spots/preview-insight", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          locationName: spotName.trim(),
+          sourceSnippet: spotSnippet.trim(),
+          language,
+        }),
+      } as RequestInit);
+      setSpotAiPreview(data.insight || "");
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Falha ao gerar previa",
+        description: err.message || "Nao foi possivel gerar a versao guiada por IA.",
+      });
+    } finally {
+      setIsGeneratingSpotPreview(false);
+    }
   };
 
   const handleEditEst = (est: any) => {
@@ -430,6 +475,29 @@ export default function AdminDashboardPage() {
     } catch (err: any) {
       toast({ variant: "destructive", title: "Falha ao gerar QR", description: err.message });
     }
+  };
+
+  const handlePermanentDeleteSpot = async (id: string, name: string) => {
+    const confirmed = window.confirm(`Tem certeza que deseja excluir permanentemente o local "${name}"? Essa acao nao pode ser desfeita.`);
+    if (!confirmed) return;
+
+    const res = await fetch(`/api/admin/spots/${id}`, { method: "DELETE" });
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok) {
+      toast({
+        variant: "destructive",
+        title: "Falha ao excluir",
+        description: data?.error || "Nao foi possivel excluir o local.",
+      });
+      return;
+    }
+
+    toast({
+      title: "Local excluido",
+      description: `${name} foi removido permanentemente.`,
+    });
+    refreshData();
   };
 
   const handleCopySpotQr = async () => {
@@ -747,7 +815,48 @@ export default function AdminDashboardPage() {
               </div>
               <Input placeholder="URL da imagem" value={spotImage} onChange={(e) => setSpotImage(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl h-12 text-white" />
               <Input placeholder="Capacidade (opcional)" value={spotCapacity} onChange={(e) => setSpotCapacity(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl h-12 text-white" />
-              <Textarea placeholder="Resumo histórico (opcional)" value={spotSnippet} onChange={(e) => setSpotSnippet(e.target.value)} className="bg-black/40 border-white/5 rounded-2xl text-white min-h-[80px]" />
+              <div className="space-y-3 rounded-[1.75rem] border border-white/10 bg-black/20 p-4">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Texto Oficial do Local</p>
+                  <p className="mt-1 text-xs leading-relaxed text-white/40">
+                    Este texto e a base editorial aprovada. A IA usa esse conteudo como contexto para criar uma versao mais guiada, sem perder o controle historico.
+                  </p>
+                </div>
+                <Textarea
+                  placeholder="Descreva a historia, curiosidades, contexto cultural ou ambiental do local."
+                  value={spotSnippet}
+                  onChange={(e) => setSpotSnippet(e.target.value)}
+                  className="bg-black/40 border-white/5 rounded-2xl text-white min-h-[120px]"
+                />
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handlePreviewSpotInsight("pt")}
+                    disabled={isGeneratingSpotPreview}
+                    className="border-white/10 text-white/70 h-11 rounded-2xl text-[10px] uppercase font-black"
+                  >
+                    {isGeneratingSpotPreview && spotPreviewLanguage === "pt" ? "Gerando..." : "Previa IA PT"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handlePreviewSpotInsight("en")}
+                    disabled={isGeneratingSpotPreview}
+                    className="border-white/10 text-white/70 h-11 rounded-2xl text-[10px] uppercase font-black"
+                  >
+                    {isGeneratingSpotPreview && spotPreviewLanguage === "en" ? "Generating..." : "AI Preview EN"}
+                  </Button>
+                </div>
+                {spotAiPreview && (
+                  <div className="rounded-[1.5rem] border border-primary/20 bg-primary/10 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                      {spotPreviewLanguage === "pt" ? "Versao Guiada por IA" : "AI Guided Version"}
+                    </p>
+                    <p className="mt-2 text-sm leading-relaxed text-white/80">{spotAiPreview}</p>
+                  </div>
+                )}
+              </div>
               <Select value={spotType} onValueChange={setSpotType}>
                 <SelectTrigger className="bg-black/40 border-white/5 rounded-2xl h-12 text-white">
                   <SelectValue placeholder="Tipo de local" />
@@ -774,6 +883,8 @@ export default function AdminDashboardPage() {
                       setSpotImage("");
                       setSpotCapacity("");
                       setSpotSnippet("");
+                      setSpotAiPreview("");
+                      setSpotPreviewLanguage("pt");
                     }}
                     className="border-white/10 text-white/60 h-12 rounded-2xl text-[10px] uppercase font-black"
                   >
@@ -834,9 +945,19 @@ export default function AdminDashboardPage() {
                         <p className="text-sm font-black text-white">{spot.name}</p>
                         <p className="text-[9px] text-white/40 uppercase">{spot.id}</p>
                       </div>
-                      <Button variant="outline" className="border-white/10 text-white/50" onClick={() => handleReactivateSpot(spot.id)}>
-                        Reativar
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button variant="outline" className="border-white/10 text-white/50" onClick={() => handleReactivateSpot(spot.id)}>
+                          Reativar
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="border-red-500/20 text-red-300 hover:bg-red-950/30 hover:text-red-200"
+                          onClick={() => handlePermanentDeleteSpot(spot.id, spot.name)}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Excluir
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>

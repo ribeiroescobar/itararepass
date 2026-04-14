@@ -23,13 +23,13 @@ const schema = z.object({
 export async function PATCH(req: Request, context: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
   if (!admin.ok) {
-    return NextResponse.json({ error: "Sem permissão." }, { status: admin.reason === "forbidden" ? 403 : 401 });
+    return NextResponse.json({ error: "Sem permissao." }, { status: admin.reason === "forbidden" ? 403 : 401 });
   }
 
   const body = await req.json().catch(() => null);
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Dados inválidos." }, { status: 400 });
+    return NextResponse.json({ error: "Dados invalidos." }, { status: 400 });
   }
 
   const { id } = await context.params;
@@ -72,10 +72,29 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 export async function DELETE(_: Request, context: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
   if (!admin.ok) {
-    return NextResponse.json({ error: "Sem permissão." }, { status: admin.reason === "forbidden" ? 403 : 401 });
+    return NextResponse.json({ error: "Sem permissao." }, { status: admin.reason === "forbidden" ? 403 : 401 });
   }
 
   const { id } = await context.params;
-  await dbQuery("UPDATE spots SET is_active = false, updated_at = now() WHERE id = $1", [id]);
+  const existing = await dbQuery(`SELECT id, is_active as "isActive" FROM spots WHERE id = $1`, [id]);
+  const spot = existing.rows[0] as { id: string; isActive: boolean } | undefined;
+
+  if (!spot) {
+    return NextResponse.json({ error: "Local nao encontrado." }, { status: 404 });
+  }
+
+  if (spot.isActive !== false) {
+    return NextResponse.json({ error: "Desative o local antes de excluir permanentemente." }, { status: 409 });
+  }
+
+  try {
+    await dbQuery("DELETE FROM spots WHERE id = $1", [id]);
+  } catch {
+    return NextResponse.json(
+      { error: "Nao foi possivel excluir este local porque ele possui registros vinculados." },
+      { status: 409 }
+    );
+  }
+
   return NextResponse.json({ ok: true });
 }

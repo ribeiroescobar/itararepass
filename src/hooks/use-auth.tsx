@@ -3,6 +3,11 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
+import {
+  clearCachedTouristAuth,
+  readCachedTouristAuth,
+  writeCachedTouristAuth,
+} from "@/lib/offline-cache";
 
 export type UserRole =
   | "admin_master"
@@ -54,6 +59,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function shouldPersistTouristOfflineCache(profile: UserProfile | null | undefined) {
+  if (!profile) return false;
+  return profile.role === "tourist" || profile.tipo_usuario === "turista";
+}
+
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...options,
@@ -89,11 +99,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!active) return;
         setUser(data.user);
         setProfile(data.profile);
+        if (data.user && shouldPersistTouristOfflineCache(data.profile)) {
+          writeCachedTouristAuth({
+            user: { uid: data.user.uid, email: data.user.email },
+            profile: data.profile!,
+            cachedAt: Date.now(),
+          });
+        } else {
+          clearCachedTouristAuth();
+        }
       })
       .catch(() => {
         if (!active) return;
-        setUser(null);
-        setProfile(null);
+        const cached = readCachedTouristAuth();
+        if (cached && shouldPersistTouristOfflineCache(cached.profile as UserProfile)) {
+          setUser(cached.user);
+          setProfile(cached.profile as UserProfile);
+        } else {
+          setUser(null);
+          setProfile(null);
+        }
       })
       .finally(() => {
         if (!active) return;
@@ -160,6 +185,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setUser(data.user);
       setProfile(data.profile);
+      if (shouldPersistTouristOfflineCache(data.profile)) {
+        writeCachedTouristAuth({
+          user: { uid: data.user.uid, email: data.user.email },
+          profile: data.profile,
+          cachedAt: Date.now(),
+        });
+      } else {
+        clearCachedTouristAuth();
+      }
 
       if (!data.profile.approved) {
         toast({
@@ -200,6 +234,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setUser(data.user);
       setProfile(data.profile);
+      if (shouldPersistTouristOfflineCache(data.profile)) {
+        writeCachedTouristAuth({
+          user: { uid: data.user.uid, email: data.user.email },
+          profile: data.profile,
+          cachedAt: Date.now(),
+        });
+      } else {
+        clearCachedTouristAuth();
+      }
 
       if (
         (data.profile.role === "admin" || data.profile.role === "merchant") &&
@@ -242,6 +285,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       body: JSON.stringify(data),
     });
     setProfile(result.profile);
+    if (shouldPersistTouristOfflineCache(result.profile)) {
+      writeCachedTouristAuth({
+        user: { uid: user.uid, email: user.email },
+        profile: result.profile,
+        cachedAt: Date.now(),
+      });
+    } else {
+      clearCachedTouristAuth();
+    }
   };
 
   const updateUserStatus = async (targetUid: string, data: Partial<UserProfile>) => {
@@ -257,6 +309,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await fetchJson("/api/auth/logout", { method: "POST" });
     setUser(null);
     setProfile(null);
+    clearCachedTouristAuth();
     router.replace("/login");
   };
 
