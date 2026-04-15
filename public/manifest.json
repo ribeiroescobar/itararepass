@@ -2,10 +2,14 @@
   "name": "Itarare Pass",
   "short_name": "ItararePass",
   "description": "Explore Itarare e ganhe recompensas.",
-  "start_url": "/",
+  "id": "/",
+  "start_url": "/explore",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0d2a1f",
   "theme_color": "#f97316",
+  "lang": "pt-BR",
   "icons": [
     {
       "src": "/logo.jpeg",

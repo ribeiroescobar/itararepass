@@ -37,6 +37,7 @@ export function QRScanner({
   const fallbackRegionId = useId().replace(/:/g, "");
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const nativeLoopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -166,10 +167,16 @@ export function QRScanner({
 
         stopNativeStream();
         await startFallbackScanner();
-      } catch {
+      } catch (err: any) {
+        const message =
+          err?.name === "NotAllowedError"
+            ? "Permissao da camera negada. Libere o acesso nas configuracoes do app."
+            : err?.name === "NotFoundError"
+              ? "Nenhuma camera foi encontrada neste dispositivo."
+              : "Nao foi possivel iniciar a camera. Tente usar o codigo manual.";
         if (isMounted) {
           setHasCameraPermission(false);
-          setCameraError("Nao foi possivel iniciar a camera. Tente usar o codigo manual.");
+          setCameraError(message);
           setIsInitializing(false);
         }
       }
@@ -208,6 +215,36 @@ export function QRScanner({
     void handleScanSuccess(targetId === "any" ? "demo_success" : targetId);
   };
 
+  const handleNativeCapture = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleCapturedFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const imageFile = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!imageFile || isHandlingScanRef.current) return;
+
+    isHandlingScanRef.current = true;
+    setScanning(true);
+    setIsInitializing(false);
+    setCameraError(null);
+
+    try {
+      const fileScanner = new Html5Qrcode(fallbackRegionId);
+      const decodedText = await fileScanner.scanFile(imageFile, false);
+      fileScanner.clear();
+      await handleScanSuccess(decodedText.trim());
+    } catch {
+      setCameraError("Nao foi possivel ler o QR pela foto. Tente aproximar mais o codigo ou usar o codigo manual.");
+    } finally {
+      setTimeout(() => {
+        isHandlingScanRef.current = false;
+        setScanning(false);
+      }, 900);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[100] overflow-y-auto bg-black/98 backdrop-blur-2xl">
       <div className="sticky top-0 z-20 border-b border-white/5 bg-black/70 p-4 backdrop-blur-xl sm:p-6">
@@ -240,6 +277,15 @@ export function QRScanner({
       </div>
 
       <div className="relative mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-5xl flex-col items-center justify-center p-6 sm:p-8">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleCapturedFile}
+          className="hidden"
+        />
+
         <div className="relative aspect-square w-full max-w-[320px] overflow-hidden rounded-[2.5rem] border-2 border-white/10 bg-black shadow-2xl sm:rounded-[3rem]">
           <video
             ref={videoRef}
@@ -275,6 +321,17 @@ export function QRScanner({
             </Alert>
           )}
 
+          {!demoMode && (
+            <Button
+              onClick={handleNativeCapture}
+              variant="outline"
+              className="flex h-14 w-full items-center gap-3 rounded-[1.5rem] border-white/10 bg-white/5 px-6 text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10"
+            >
+              <Camera className="h-4 w-4" />
+              Abrir camera do aparelho
+            </Button>
+          )}
+
           {demoMode && (
             <Button
               onClick={handleDemoBypass}
@@ -287,7 +344,7 @@ export function QRScanner({
           )}
 
           <p className="max-w-sm text-center text-[10px] font-bold uppercase tracking-widest text-white/30">
-            {demoMode ? "Modo demo ativo: use o botao acima para simular a leitura." : scanHint}
+            {demoMode ? "Modo demo ativo: use o botao acima para simular a leitura." : "Se a lente ao vivo falhar no APK, use a camera do aparelho ou o codigo manual."}
           </p>
         </div>
       </div>

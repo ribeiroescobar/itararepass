@@ -30,7 +30,8 @@ export default function MapPage() {
     spots, 
     demoMode, 
     simularCaminhada,
-    isSimulating
+    isSimulating,
+    locationError
   } = useItarare();
 
   const [distance, setDistance] = useState<string | null>(null);
@@ -117,6 +118,13 @@ export default function MapPage() {
                 <p className="text-[9px] text-primary font-black uppercase tracking-widest mt-1">Distância</p>
               </div>
             </div>
+          </div>
+        )}
+
+        {locationError && !demoMode && (
+          <div className="bg-red-950/80 backdrop-blur-xl border border-red-500/20 p-4 rounded-[1.5rem] shadow-2xl pointer-events-auto">
+            <p className="text-[9px] font-black uppercase tracking-widest text-red-300">Falha no GPS</p>
+            <p className="mt-1 text-xs leading-relaxed text-white/75">{locationError}</p>
           </div>
         )}
       </div>
